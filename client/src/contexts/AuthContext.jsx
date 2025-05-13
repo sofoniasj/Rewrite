@@ -9,7 +9,7 @@ export const useAuth = () => useContext(AuthContext);
 
 // Configure Axios instance for API calls
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api', // Fallback if env var is not set
+  baseURL: import.meta.env.VITE_API_URL || 'https://rewriteb.onrender.com', // Fallback if env var is not set
 });
 
 // Add a request interceptor to include the token in headers
