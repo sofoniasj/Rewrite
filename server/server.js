@@ -27,7 +27,7 @@ const app = express();
 // Middleware setup
 // CORS: Enable All CORS Requests for development. For production, configure specific origins.
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173', // Vite default client port
+  origin: process.env.CLIENT_URL || 'http://rewrite-9ers.onrender.com/', // Vite default client port
   credentials: true
 }));
 
