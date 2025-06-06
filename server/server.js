@@ -20,7 +20,7 @@ connectDB();
 const app = express();
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: process.env.CLIENT_URL || 'https://rewrite-9ers.onrender.com', // Vite default client port
   credentials: true
 }));
 app.use(helmet());

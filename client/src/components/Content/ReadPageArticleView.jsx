@@ -82,6 +82,10 @@ const ReadPageArticleView = ({ initialLineage: propInitialLineage, rootArticleId
     setLoading(true); setError(null); setActiveSegmentForActions(null);
     setShowVersionSelectorFor(null); setIsReplyingToActiveSegment(false); setIsEditingActiveSegment(false);
 
+  // --- Actions for the activeSegmentForActions ---
+  const handleLikeActiveSegment = async () => {
+    if (!activeSegmentForActions || !isAuthenticated) return;
+    setActionLoading({ type: 'like', id: activeSegmentForActions.id });
     try {
         let lineageData = [];
         const passedPathIds = location.state?.initialPathIds?.map(id => id.toString());
