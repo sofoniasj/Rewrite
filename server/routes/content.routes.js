@@ -1,37 +1,69 @@
 // Rewrite/server/routes/content.routes.js
 import express from 'express';
 import {
-    getFilteredContent,
-  getTopLevelArticles,
+  // Main content fetching (handles general, popular via query params)
+  getFilteredContent,
+
+  // Specific Feed Controllers
+  getMyPageFeed,
+  getExploreFeed,
+
+  // Single content item and its variations/lineage
   getContentById,
   getContentLineage,
   getContentVersions,
+
+  // User-specific content list
+  getArticlesByUser,
+
+  // Protected actions on content
   createContent,
   updateContent,
   toggleLikeContent,
   reportContent,
+  toggleArticlePrivacy,
+
+  // Admin actions
   getAllContentForAdmin,
   deleteContentForAdmin,
 } from '../controllers/content.controller.js';
-import { protect, admin } from '../middleware/auth.middleware.js'; // Assuming 'admin' is a role check middleware
+
+// Middleware
+import { protect, admin } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// --- Public Routes ---
-router.get('/', getFilteredContent ); // Get all top-level articles (paginated)
-router.get('/:id', getContentById); // Get specific content item by ID
-router.get('/:id/lineage', getContentLineage); // Get content lineage for "Read" page
-router.get('/:id/versions', getContentVersions); // Get alternative versions (siblings)
+// --- Feed Routes (Specific Endpoints) ---
+// These are protected as they are personalized or involve potentially complex queries
+router.get('/feed/my-page', protect, getMyPageFeed);
+router.get('/feed/explore', protect, getExploreFeed);
 
-// --- Protected Routes (User Authentication Required) ---
-router.post('/', protect, createContent); // Create new content (article or reply)
-router.put('/:id', protect, updateContent); // Update content (author only)
+// --- General Content Fetching Routes ---
+// This route handles various scenarios based on query parameters:
+// - Default: Recent public articles (if no feedType, parentContent=null)
+// - Popular: ?feedType=popular&sortBy=truePopularity_desc
+// - Children/Replies: ?parentContent=<parent_id>
+// - Title lists: ?view=titles
+router.get('/', getFilteredContent);
+
+// --- Routes for Specific User's Articles ---
+// 'protect' is used here so req.user is available in getArticlesByUser for privacy checks
+router.get('/user/:userId', protect, getArticlesByUser);
+
+// --- Routes for Individual Content Items & Their Variations ---
+router.get('/:id', getContentById);
+router.get('/:id/lineage', getContentLineage);
+router.get('/:id/versions', getContentVersions); // Gets siblings of content item :id
+
+// --- Protected Routes for Content Creation & Modification ---
+router.post('/', protect, createContent); // Create new top-level article or reply
+router.put('/:id', protect, updateContent); // Edit existing content text (author or admin)
+router.put('/:articleId/privacy', protect, toggleArticlePrivacy); // Toggle public/followers-only (author or admin)
 router.post('/:id/like', protect, toggleLikeContent); // Like or unlike content
 router.post('/:id/report', protect, reportContent); // Report content
 
-// --- Admin Routes (Admin Role Required) ---
-// Prefixing admin routes with /admin for clarity, or handle in controller/middleware
-router.get('/admin/all', protect, admin, getAllContentForAdmin); // Get all content for admin view
-router.delete('/admin/:id', protect, admin, deleteContentForAdmin); // Delete content (admin)
+// --- Admin Only Content Routes ---
+router.get('/admin/all', protect, admin, getAllContentForAdmin); // Get all content items (for admin panel)
+router.delete('/admin/:id', protect, admin, deleteContentForAdmin); // Delete any content item and its children (admin)
 
 export default router;

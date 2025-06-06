@@ -11,7 +11,7 @@ const reportSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  reason: { // Optional: if you want to store a reason for the report
+  reason: {
     type: String,
     trim: true,
     maxlength: 200
@@ -21,7 +21,7 @@ const reportSchema = new mongoose.Schema({
 
 const contentSchema = new mongoose.Schema(
   {
-    title: { // Only for top-level parent articles
+    title: {
       type: String,
       trim: true,
       maxlength: [150, 'Title cannot exceed 150 characters'],
@@ -39,58 +39,47 @@ const contentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    parentContent: { // For threading/replies
+    parentContent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Content',
       default: null,
       index: true,
     },
-    // children: [ // Direct children. Can be useful but also derivable from parentContent.
-    //   {
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     ref: 'Content',
-    //   },
-    // ],
-    likes: [ // Array of user IDs who liked this content
+    likes: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
       },
     ],
-    likeCount: { // Denormalized count for performance in sorting/display
+    likeCount: {
       type: Number,
       default: 0,
       min: 0,
       index: true,
     },
     reports: [reportSchema],
-    isReported: { // Quick flag for admin, true if reports array is not empty
+    isReported: {
       type: Boolean,
       default: false,
       index: true,
     },
-    // You might want a status field for content (e.g., 'active', 'deleted_by_user', 'deleted_by_admin')
+    // NEW FIELD FOR ARTICLE PRIVACY
+    isPrivateToFollowers: {
+        type: Boolean,
+        default: false, // Default to public
+    },
+    // You might also want a field to track if an article is "unlisted" or "draft"
     // status: {
     //   type: String,
-    //   enum: ['active', 'archived', 'deleted'],
-    //   default: 'active'
+    //   enum: ['public', 'followers_only', 'unlisted', 'draft', 'deleted'],
+    //   default: 'public'
     // }
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Pre-save hook to update 'updatedAt' (Mongoose does this by default with timestamps:true)
-// If you needed custom logic for updatedAt:
-// contentSchema.pre('save', function (next) {
-//   if (!this.isNew) {
-//     this.updatedAt = Date.now();
-//   }
-//   next();
-// });
-
-// Update likeCount and isReported before saving
 contentSchema.pre('save', function(next) {
   if (this.isModified('likes')) {
     this.likeCount = this.likes.length;
@@ -101,27 +90,21 @@ contentSchema.pre('save', function(next) {
   next();
 });
 
-
-// Virtual for 'id'
 contentSchema.virtual('id').get(function () {
   return this._id.toHexString();
 });
 
-// Ensure virtual fields are included in toJSON output
 contentSchema.set('toJSON', {
   virtuals: true,
   versionKey: false,
   transform: function (doc, ret) {
     delete ret._id;
-    // ret.author = ret.author.username; // Example of transforming populated author
   },
 });
 
-// Index for finding top-level articles
 contentSchema.index({ parentContent: 1, createdAt: -1 });
-// Index for finding children of a parent, sorted by likes and then creation date
 contentSchema.index({ parentContent: 1, likeCount: -1, createdAt: 1 });
-
+contentSchema.index({ author: 1, createdAt: -1 }); // Index for fetching user's articles
 
 const Content = mongoose.model('Content', contentSchema);
 

@@ -1,51 +1,58 @@
 // Rewrite/client/src/components/Content/ArticleItem.jsx
 import React, { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { FaThumbsUp, FaRegThumbsUp, FaEdit, FaTrashAlt, FaFlag, FaReply, FaSpinner } from 'react-icons/fa';
+// ADDED FaCheckCircle to the import
+import { FaThumbsUp, FaRegThumbsUp, FaEdit, FaTrashAlt, FaFlag, FaReply, FaSpinner, FaMedal, FaCheckCircle } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
-import NestedContent from './NestedContent'; // To display replies
-import ArticleForm from './ArticleForm'; // For replying inline
-import LoadingSpinner from '../Common/LoadingSpinner';
+import NestedContent from './NestedContent';
+import ArticleForm from './ArticleForm';
+//import LoadingSpinner from '../Common/LoadingSpinner';
 
-const ArticleItem = ({ article, onContentUpdate, onContentDelete }) => {
+const ArticleItem = ({ article, onContentUpdate, onContentDelete, showPopularityScore = false }) => {
   const { user, apiClient, isAuthenticated } = useAuth();
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(article.text);
-  const [likeStatus, setLikeStatus] = useState({ count: article.likeCount, likedByUser: false });
-  const [reportStatus, setReportStatus] = useState({ reportedByUser: false, isReportedGlobally: article.isReported });
+  const [likeStatus, setLikeStatus] = useState({ count: article.likeCount || 0, likedByUser: false });
+  const [reportStatus, setReportStatus] = useState({ 
+    reportedByUser: false, 
+    isReportedGlobally: article.isReported || false 
+  });
   const [loadingLike, setLoadingLike] = useState(false);
   const [loadingReport, setLoadingReport] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [error, setError] = useState(null);
-  const [refreshChildrenKey, setRefreshChildrenKey] = useState(0); // To refresh nested content
+  const [refreshChildrenKey, setRefreshChildrenKey] = useState(0);
 
-  const isAuthor = user && user.id === article.author?.id; // Check if current user is the author
+  const isAuthor = user && article.author && user.id === article.author.id;
   const isAdmin = user && user.role === 'admin';
 
-  // Determine initial like status
   useEffect(() => {
     if (isAuthenticated && article.likes) {
        const liked = article.likes.some(like => (typeof like === 'string' ? like : like.id) === user.id);
-       setLikeStatus({ count: article.likeCount, likedByUser: liked });
+       setLikeStatus({ count: article.likeCount || 0, likedByUser: liked });
     } else {
-       setLikeStatus({ count: article.likeCount, likedByUser: false });
+       setLikeStatus({ count: article.likeCount || 0, likedByUser: false });
     }
-    // Determine initial report status (more complex if needing to check if *this* user reported)
-    // For simplicity, just use the global flag for now. A check against article.reports could be added.
-    setReportStatus({ reportedByUser: false, isReportedGlobally: article.isReported });
-    setEditedText(article.text); // Ensure edited text resets if article prop changes
+    setReportStatus({
+        reportedByUser: isAuthenticated && article.reports ? article.reports.some(report => (report.reporter === user.id || report.reporter?._id === user.id)) : false,
+        isReportedGlobally: article.isReported || false
+    });
+    setEditedText(article.text || ''); // Ensure text is not undefined
   }, [article, user, isAuthenticated]);
 
   const handleToggleLike = async () => {
-    if (!isAuthenticated) return alert('Please log in to like content.'); // Or show modal
+    if (!isAuthenticated) {
+        alert('Please log in to like content.');
+        return;
+    }
     setLoadingLike(true);
     setError(null);
     try {
       const { data } = await apiClient.post(`/content/${article.id}/like`);
-      setLikeStatus({ count: data.likeCount, likedByUser: !likeStatus.likedByUser }); // Toggle based on action
-      // Optionally update the parent list via onContentUpdate if needed elsewhere
+      const newLikedByUser = data.likes.some(like => (typeof like === 'string' ? like : like.id) === user.id);
+      setLikeStatus({ count: data.likeCount, likedByUser: newLikedByUser });
       if(onContentUpdate) onContentUpdate({...article, likeCount: data.likeCount, likes: data.likes });
     } catch (err) {
       console.error("Failed to toggle like:", err);
@@ -56,49 +63,46 @@ const ArticleItem = ({ article, onContentUpdate, onContentDelete }) => {
   };
 
   const handleReport = async () => {
-     if (!isAuthenticated) return alert('Please log in to report content.');
-     if (reportStatus.isReportedGlobally) return; // Maybe allow multiple reports? Depends on requirements. For now, prevent if already flagged.
-     // Could add a check here if this specific user already reported
-
+     if (!isAuthenticated) {
+        alert('Please log in to report content.');
+        return;
+     }
+     if (reportStatus.reportedByUser || reportStatus.isReportedGlobally) {
+        alert("This content has already been reported by you or flagged by others.");
+        return;
+     }
      setLoadingReport(true);
      setError(null);
      try {
-       // Could add a modal here to ask for a reason
        const { data } = await apiClient.post(`/content/${article.id}/report`, { reason: 'Reported via button' });
        setReportStatus({ reportedByUser: true, isReportedGlobally: data.isReported });
-       alert('Content reported successfully.'); // Simple feedback
-       if(onContentUpdate) onContentUpdate({...article, isReported: data.isReported, reports: [...(article.reports || []), {reporter: user.id}] }); // Update parent
+       alert('Content reported successfully.');
+       if(onContentUpdate) onContentUpdate({...article, isReported: data.isReported, reports: [...(article.reports || []), {reporter: user.id}] });
      } catch (err) {
        console.error("Failed to report:", err);
        setError(err.response?.data?.error || "Report failed.");
-       alert(err.response?.data?.error || "Report failed."); // Show error
+       alert(err.response?.data?.error || "Report failed.");
      } finally {
        setLoadingReport(false);
      }
    };
 
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditedText(article.text); // Reset text
-    setError(null);
-  };
+  const handleEdit = () => setIsEditing(true);
+  const handleCancelEdit = () => { setIsEditing(false); setEditedText(article.text || ''); setError(null); };
 
   const handleSaveEdit = async (e) => {
      e.preventDefault();
-     if (!editedText.trim()) return setError("Content cannot be empty.");
-
+     if (!editedText.trim()) {
+        setError("Content cannot be empty.");
+        return;
+     }
      setLoadingEdit(true);
      setError(null);
      try {
        const { data } = await apiClient.put(`/content/${article.id}`, { text: editedText.trim() });
        setIsEditing(false);
-       // Update the parent component's state
        if (onContentUpdate) {
-         onContentUpdate(data);
+         onContentUpdate(data); // Pass the full updated article object
        }
      } catch (err) {
        console.error("Failed to save edit:", err);
@@ -109,32 +113,29 @@ const ArticleItem = ({ article, onContentUpdate, onContentDelete }) => {
    };
 
   const handleDelete = async () => {
-    // Confirmation dialog
-    if (!window.confirm(`Are you sure you want to delete this ${article.parentContent ? 'reply' : 'article'}? This action cannot be undone.`)) {
-        return;
-    }
-    setLoadingDelete(true);
-    setError(null);
+    if (!window.confirm(`Are you sure you want to delete this ${article.parentContent ? 'reply' : 'article'}? This action cannot be undone.`)) return;
+    setLoadingDelete(true); setError(null);
     try {
-        // Admin delete uses a different endpoint
-        const deleteUrl = isAdmin ? `/content/admin/${article.id}` : `/content/${article.id}`; // Assuming non-admin author delete is not allowed yet based on API
-        if (!isAdmin && isAuthor) {
-            // TODO: Implement author delete endpoint if required
-             alert("Author delete functionality not yet implemented.");
-             setLoadingDelete(false);
-             return;
-        } else if (!isAdmin) {
+        let deleteUrl = '';
+        if (isAdmin) {
+            deleteUrl = `/content/admin/${article.id}`;
+        } else if (isAuthor) {
+            // Assuming a general delete endpoint for authors, or it could be the same as admin if permissions are handled server-side
+            // For now, let's assume authors can't delete directly from here unless it's an admin action or a specific author delete endpoint is made
+            // This part needs clarification based on your API design for author deletions.
+            // If authors can delete their own content via a non-admin route:
+            // deleteUrl = `/content/${article.id}`; // This would need a DELETE handler on this route in backend
+            alert("Author delete functionality needs a specific endpoint or admin rights for this button.");
+            setLoadingDelete(false);
+            return;
+        } else {
             alert("You are not authorized to delete this content.");
             setLoadingDelete(false);
             return;
         }
-
+        
         await apiClient.delete(deleteUrl);
-        // Notify parent component to remove this item from the list
-        if (onContentDelete) {
-            onContentDelete(article.id);
-        }
-        // No need to setLoadingDelete(false) as the component will unmount
+        if (onContentDelete) onContentDelete(article.id);
     } catch (err) {
         console.error("Failed to delete content:", err);
         setError(err.response?.data?.error || "Failed to delete content.");
@@ -142,100 +143,61 @@ const ArticleItem = ({ article, onContentUpdate, onContentDelete }) => {
     }
   };
 
-
-  const handleReplySuccess = (newReply) => {
-     // When a reply is successfully posted, close the form and refresh children
-     setIsReplying(false);
-     setRefreshChildrenKey(prev => prev + 1); // Increment key to trigger NestedContent refresh
-   };
+  const handleReplySuccess = (newReply) => { setIsReplying(false); setRefreshChildrenKey(prev => prev + 1); };
 
   return (
-    <div className="card article-item">
+    <div className="card article-item" id={`article-${article.id}`} style={{marginBottom:'1.5rem'}}>
       {loadingDelete && <LoadingSpinner overlay={true} />}
       {article.title && <h3 className="card-title">{article.title}</h3>}
-      <div className="card-meta">
-        <span>By: {article.author?.username || 'Unknown User'}</span>
-        <span>
-          {formatDistanceToNow(new Date(article.createdAt), { addSuffix: true })}
+      <div className="card-meta" style={{marginBottom:'0.75rem'}}>
+        <span>By: {article.author?.username || 'Unknown User'} 
+            {article.author?.isVerified && <FaCheckCircle title="Verified Account" style={{color: 'dodgerblue', marginLeft:'4px', fontSize:'0.9em', verticalAlign:'middle'}}/>}
         </span>
-        {reportStatus.isReportedGlobally && <span className="report-indicator"><FaFlag color="red" title="This content has been reported"/> Reported</span>}
+        <span style={{marginLeft:'10px'}}>{formatDistanceToNow(new Date(article.createdAt), { addSuffix: true })}</span>
+        {article.updatedAt && new Date(article.updatedAt).getTime() !== new Date(article.createdAt).getTime() && (
+            <em style={{fontSize:'0.8em', color:'#6c757d', marginLeft:'10px'}}>(edited {formatDistanceToNow(new Date(article.updatedAt), { addSuffix: true })})</em>
+        )}
+        {reportStatus.isReportedGlobally && <span className="report-indicator" style={{color:'red', fontWeight:'bold', marginLeft:'10px'}}><FaFlag title="Reported"/> Reported</span>}
+        {showPopularityScore && typeof article.truePopularityScore === 'number' && (
+            <span style={{marginLeft:'10px', color: '#dc3545', fontWeight:'bold'}}>
+                <FaMedal style={{marginRight:'4px'}} /> Popularity: {article.truePopularityScore}
+            </span>
+        )}
       </div>
 
       {isEditing ? (
-        <form onSubmit={handleSaveEdit}>
+        <form onSubmit={handleSaveEdit} style={{marginBottom:'1rem'}}>
             {loadingEdit && <LoadingSpinner />}
-            {error && <p className="error-message">{error}</p>}
+            {error && !loadingEdit && <p className="error-message">{error}</p>}
             <div className="form-group">
-                <textarea
-                    className="form-control"
-                    rows="4"
-                    value={editedText}
-                    onChange={(e) => setEditedText(e.target.value)}
-                    required
-                    maxLength="10000"
-                    disabled={loadingEdit}
-                />
+                <textarea className="form-control" rows="4" value={editedText} onChange={(e) => setEditedText(e.target.value)} required maxLength="10000" disabled={loadingEdit}/>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={handleCancelEdit} disabled={loadingEdit}>Cancel</button>
                 <button type="submit" className="btn btn-success btn-sm" disabled={loadingEdit || !editedText.trim()}>
-                    {loadingEdit ? 'Saving...' : 'Save Changes'}
+                    {loadingEdit ? <><FaSpinner className="spin" style={{marginRight:'5px'}}/>Saving...</> : 'Save Changes'}
                 </button>
             </div>
         </form>
       ) : (
-        <p className="card-text">{article.text}</p>
+        <p className="card-text" style={{whiteSpace:'pre-wrap'}}>{article.text || "[No content]"}</p>
       )}
+      {error && !isEditing && !loadingEdit && <p className="error-message">{error}</p>}
 
-      {error && !isEditing && <p className="error-message">{error}</p>} {/* Show general errors if not editing */}
-
-      <div className="article-actions">
-        <button onClick={handleToggleLike} className="btn btn-link" disabled={loadingLike || !isAuthenticated}>
-          {loadingLike ? <FaSpinner className="icon spin" /> : (likeStatus.likedByUser ? <FaThumbsUp className="icon" color="blue"/> : <FaRegThumbsUp className="icon"/>)}
-          Like <span className="like-count">({likeStatus.count})</span>
-        </button>
-        {isAuthenticated && (
-          <button onClick={() => setIsReplying(!isReplying)} className="btn btn-link">
-            <FaReply className="icon" /> {isReplying ? 'Cancel Reply' : 'Reply'}
-          </button>
-        )}
-        {isAuthenticated && (
-            <button onClick={handleReport} className="btn btn-link" disabled={loadingReport || reportStatus.isReportedGlobally}>
-                {loadingReport ? <FaSpinner className="icon spin" /> : <FaFlag className="icon" />}
-                {reportStatus.isReportedGlobally ? 'Reported' : 'Report'}
-            </button>
-        )}
-        {isAuthor && !isEditing && (
-          <button onClick={handleEdit} className="btn btn-link">
-            <FaEdit className="icon" /> Edit
-          </button>
-        )}
-         {/* Admin delete button */}
-         {isAdmin && (
-             <button onClick={handleDelete} className="btn btn-link text-danger" disabled={loadingDelete}>
-                 <FaTrashAlt className="icon" /> Delete (Admin)
-             </button>
-         )}
-         {/* TODO: Add Author delete button if required */}
-         {/* {isAuthor && !isAdmin && ( ... )} */}
+      <div className="article-actions" style={{marginTop:'1rem', paddingTop:'0.5rem', borderTop:'1px solid #f0f0f0'}}>
+        <button onClick={handleToggleLike} className="btn btn-link" disabled={loadingLike || !isAuthenticated}> {loadingLike ? <FaSpinner className="icon spin" /> : (likeStatus.likedByUser ? <FaThumbsUp className="icon" color="blue"/> : <FaRegThumbsUp className="icon"/>)} Like <span className="like-count">({likeStatus.count})</span> </button>
+        {isAuthenticated && (<button onClick={() => setIsReplying(prev => !prev)} className="btn btn-link"> <FaReply className="icon" /> {isReplying ? 'Cancel Reply' : 'Reply'} </button> )}
+        {isAuthenticated && (<button onClick={handleReport} className="btn btn-link" disabled={loadingReport || reportStatus.reportedByUser || reportStatus.isReportedGlobally}> {loadingReport ? <FaSpinner className="icon spin" /> : <FaFlag className="icon" />} {reportStatus.reportedByUser ? 'You Reported' : (reportStatus.isReportedGlobally ? 'Flagged' : 'Report')} </button> )}
+        {isAuthor && !isEditing && (<button onClick={handleEdit} className="btn btn-link"> <FaEdit className="icon" /> Edit </button> )}
+        {isAdmin && (<button onClick={handleDelete} className="btn btn-link text-danger" disabled={loadingDelete}> <FaTrashAlt className="icon" /> Delete (Admin) </button> )}
       </div>
 
-      {isReplying && (
-        <div style={{marginTop: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #eee'}}>
-          <ArticleForm
-            parentContentId={article.id}
-            onPostSuccess={handleReplySuccess}
-            onCancel={() => setIsReplying(false)} // Add cancel handler
-          />
-        </div>
-      )}
-
-      {/* Display nested replies */}
-      <NestedContent parentId={article.id} key={refreshChildrenKey} />
-
+      {isReplying && (<div style={{marginTop: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #eee'}}> <ArticleForm parentContentId={article.id} onPostSuccess={handleReplySuccess} onCancel={() => setIsReplying(false)}/> </div>)}
+      
+      {/* Only render NestedContent if the article object is valid and has an ID */}
+      {article && article.id && <NestedContent parentId={article.id} key={refreshChildrenKey} />}
     </div>
   );
 };
 
 export default ArticleItem;
-

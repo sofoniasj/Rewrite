@@ -4,62 +4,48 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import colors from 'colors'; // For console output styling
+import colors from 'colors';
 
-// Database connection
 import connectDB from './config/db.js';
 
 // Route files
 import authRoutes from './routes/auth.routes.js';
 import contentRoutes from './routes/content.routes.js';
+import userRoutes from './routes/user.routes.js'; // <-- IMPORT NEW USER ROUTES
 
-// Middleware
 import { notFound, errorHandler } from './middleware/error.middleware.js';
 
-// Load environment variables
 dotenv.config();
-
-// Connect to MongoDB
 connectDB();
-
 const app = express();
 
-// Middleware setup
-// CORS: Enable All CORS Requests for development. For production, configure specific origins.
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173', // Vite default client port
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
 }));
-
-
-// Helmet: Set various HTTP headers for security
 app.use(helmet());
-app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Example policy
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 
-// Morgan: HTTP request logger (use 'dev' for development)
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Body parsing middleware
-app.use(express.json()); // To parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // To parse URL-encoded bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Mount Routers
 app.use('/api/auth', authRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/users', userRoutes); // <-- MOUNT NEW USER ROUTES
 
-// Basic route for testing server
 app.get('/', (req, res) => {
   res.send('Rewrite API is running...');
 });
 
-// Custom error handling middleware
-app.use(notFound); // Handles 404 errors for routes not found
-app.use(errorHandler); // Global error handler
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
-
 app.listen(PORT, () => {
   console.log(
     `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`.yellow.bold

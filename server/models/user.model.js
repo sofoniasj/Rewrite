@@ -2,6 +2,34 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+// Define a sub-schema for saved articles to store more context
+// Define a sub-schema for saved articles to store more context
+const savedArticleSchema = new mongoose.Schema({
+    rootArticle: { // The top-level parent article ID
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Content',
+        required: true,
+    },
+    // entryPointArticle: { // The specific segment ID from which the lineage was saved (could be same as rootArticle)
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: 'Content',
+    //     required: true,
+    // },
+    lineagePathIds: [{ // Array of Content IDs representing the saved path
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Content',
+    }],
+    customName: { // Optional: User can name this saved lineage
+        type: String,
+        trim: true,
+        maxlength: 100,
+    },
+    savedAt: {
+        type: Date,
+        default: Date.now,
+    },
+}, {_id: true}); // Give each saved item its own unique ID for easier removal
+
 const userSchema = new mongoose.Schema(
   {
     username: {
@@ -12,6 +40,10 @@ const userSchema = new mongoose.Schema(
       minlength: [3, 'Username must be at least 3 characters long'],
       maxlength: [30, 'Username cannot exceed 30 characters'],
       match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain alphanumeric characters and underscores']
+    },
+    originalUsername: {
+        type: String,
+        trim: true,
     },
     passwordHash: {
       type: String,
@@ -24,23 +56,59 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
+      enum: ['user', 'admin', 'deleted'],
       default: 'user',
     },
+    profilePicture: {
+        type: String,
+        default: '',
+    },
+    bio: {
+        type: String,
+        maxlength: [160, 'Bio cannot exceed 160 characters'],
+        default: '',
+    },
+    isPrivate: {
+        type: Boolean,
+        default: false,
+    },
+    followers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    }],
+    following: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    }],
+    pendingFollowRequests: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    }],
+    isVerified: {
+        type: Boolean,
+        default: false,
+    },
+    verificationRequestedAt: {
+        type: Date,
+    },
+    status: {
+        type: String,
+        enum: ['active', 'deleted'],
+        default: 'active'
+    },
+    // NEW: Field for saved articles/lineages
+    savedArticles: [savedArticleSchema],
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function (next) {
-  // Only hash the password if it has been modified (or is new)
   if (!this.isModified('passwordHash')) {
     return next();
   }
-
-  // Hash the password with a salt round of 12
   try {
     const salt = await bcrypt.genSalt(12);
     this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
@@ -50,12 +118,11 @@ userSchema.pre('save', async function (next) {
   }
 });
 
-// Method to compare entered password with hashed password
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (this.status === 'deleted') return false;
   return await bcrypt.compare(enteredPassword, this.passwordHash);
 };
 
-// Virtual for 'id'
 userSchema.virtual('id').get(function () {
   return this._id.toHexString();
 });
@@ -65,7 +132,8 @@ userSchema.set('toJSON', {
   versionKey: false,
   transform: function (doc, ret) {
     delete ret._id;
-    delete ret.passwordHash; // Do not send password hash to client
+    delete ret.passwordHash;
+    // Consider if savedArticles should always be populated or fetched on demand
   },
 });
 
