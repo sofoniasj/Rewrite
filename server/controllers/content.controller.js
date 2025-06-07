@@ -396,6 +396,7 @@ const deleteContentForAdmin = [
 ];
 
 export {
+  unreportContent,
   getFilteredContent,
   getMyPageFeed,
   getExploreFeed,

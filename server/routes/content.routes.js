@@ -22,6 +22,7 @@ import {
   toggleLikeContent,
   reportContent,
   toggleArticlePrivacy,
+  unreportContent, 
 
   // Admin actions
   getAllContentForAdmin,
@@ -61,7 +62,8 @@ router.put('/:id', protect, updateContent); // Edit existing content text (autho
 router.put('/:articleId/privacy', protect, toggleArticlePrivacy); // Toggle public/followers-only (author or admin)
 router.post('/:id/like', protect, toggleLikeContent); // Like or unlike content
 router.post('/:id/report', protect, reportContent); // Report content
-
+router.delete('/:id/report', protect, unreportContent); // <-- THIS IS THE MISSING ROUTE.
+// ...
 // --- Admin Only Content Routes ---
 router.get('/admin/all', protect, admin, getAllContentForAdmin); // Get all content items (for admin panel)
 router.delete('/admin/:id', protect, admin, deleteContentForAdmin); // Delete any content item and its children (admin)
