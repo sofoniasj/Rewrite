@@ -106,6 +106,7 @@ const getUserProfile = asyncHandler(async (req, res, next) => {
       role: user.role,
       agreedToTerms: user.agreedToTerms,
       createdAt: user.createdAt,
+       isPrivate: user.isPrivate, // ✅ Include this
     });
   } else {
     return next(new AppError('User not found', 404));

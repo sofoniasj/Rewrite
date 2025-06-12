@@ -7,12 +7,10 @@ const AuthContext = createContext(null);
 
 export const useAuth = () => useContext(AuthContext);
 
-// Configure Axios instance for API calls
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://rewriteb.onrender.com/api', // Fallback if env var is not set
+  baseURL: import.meta.env.VITE_API_URL || 'https://rewriteb.onrender.com/api',
 });
 
-// Add a request interceptor to include the token in headers
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('rewriteToken');
@@ -21,16 +19,14 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('rewriteToken'));
-  const [loading, setLoading] = useState(true); // Initial loading state for checking token
-  const [error, setError] = useState(null); // For storing auth-related errors
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const fetchUserProfile = useCallback(async (currentToken) => {
@@ -39,16 +35,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return;
     }
+
     try {
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${currentToken}`;
       const { data } = await apiClient.get('/auth/me');
-      setUser(data);
+      setUser({ ...data }); // Replace user object for guaranteed re-render
     } catch (err) {
       console.error('Failed to fetch user profile:', err);
-      setUser(null);
-      localStorage.removeItem('rewriteToken'); // Clear invalid token
+      localStorage.removeItem('rewriteToken');
       setToken(null);
-      // Optionally navigate to login or show error
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -60,10 +56,9 @@ export const AuthProvider = ({ children }) => {
       setToken(storedToken);
       fetchUserProfile(storedToken);
     } else {
-      setLoading(false); // No token, no need to fetch, stop loading
+      setLoading(false);
     }
   }, [fetchUserProfile]);
-
 
   const login = async (username, password) => {
     setLoading(true);
@@ -72,16 +67,16 @@ export const AuthProvider = ({ children }) => {
       const { data } = await apiClient.post('/auth/login', { username, password });
       localStorage.setItem('rewriteToken', data.token);
       setToken(data.token);
-      setUser(data); // The user object from login response
+      setUser(data);
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-      setLoading(false);
-      navigate('/'); // Navigate to homepage or dashboard after login
+      navigate('/');
       return true;
     } catch (err) {
       console.error('Login failed:', err.response ? err.response.data : err.message);
       setError(err.response?.data?.error || 'Login failed. Please try again.');
-      setLoading(false);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -89,19 +84,23 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await apiClient.post('/auth/signup', { username, password, agreedToTerms });
+      const { data } = await apiClient.post('/auth/signup', {
+        username,
+        password,
+        agreedToTerms,
+      });
       localStorage.setItem('rewriteToken', data.token);
       setToken(data.token);
-      setUser(data); // The user object from signup response
+      setUser(data);
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-      setLoading(false);
-      navigate('/'); // Navigate to homepage or dashboard after signup
+      navigate('/');
       return true;
     } catch (err) {
       console.error('Signup failed:', err.response ? err.response.data : err.message);
       setError(err.response?.data?.error || 'Signup failed. Please try again.');
-      setLoading(false);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,30 +111,35 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     delete apiClient.defaults.headers.common['Authorization'];
     setLoading(false);
-    navigate('/login'); // Navigate to login page after logout
+    navigate('/login');
   };
 
   const clearError = () => {
     setError(null);
   };
 
+  // ✅ New: Function to update a single user field in context
+  const updateUserField = (field, value) => {
+    setUser((prevUser) => {
+      if (!prevUser) return null;
+      return { ...prevUser, [field]: value };
+    });
+  };
+
   const value = {
     user,
     token,
-    isAuthenticated: !!user, // Derived state: true if user object exists
+    isAuthenticated: !!user,
     loading,
     error,
     login,
     signup,
     logout,
-    fetchUserProfile, // Expose if manual refresh is needed elsewhere
-    apiClient, // Expose the configured axios instance if needed by other parts of the app
+    fetchUserProfile,
+    apiClient,
     clearError,
+    updateUserField, // ✅ Export the update function
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

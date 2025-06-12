@@ -139,34 +139,77 @@ const removeFollower = asyncHandler(async (req, res, next) => {
 });
 
 const updateUserProfile = [
-    body('bio').optional().isString().isLength({ max: 160 }).withMessage('Bio cannot exceed 160 characters'), body('profilePicture').optional({checkFalsy: true}).isURL().withMessage('Profile picture must be a valid URL'),
+    body('bio').optional().isString().isLength({ max: 160 }).withMessage('Bio cannot exceed 160 characters'),
+    body('profilePicture').optional({checkFalsy: true}).isURL().withMessage('Profile picture must be a valid URL'),
     asyncHandler(async (req, res, next) => {
         if (!checkValidation(req, next)) return;
-        const user = await User.findById(req.user.id); if (!user || user.status === 'deleted') return next(new AppError("User not found", 404));
+        const user = await User.findById(req.user.id);
+        if (!user || user.status === 'deleted') return next(new AppError("User not found", 404));
         if (req.body.bio !== undefined) user.bio = req.body.bio;
-        if (req.body.profilePicture !== undefined) user.profilePicture = req.body.profilePicture; // Allow empty string to clear
+        if (req.body.profilePicture !== undefined) user.profilePicture = req.body.profilePicture;
         const updatedUser = await user.save();
-        res.json({ id: updatedUser.id, username: updatedUser.username, bio: updatedUser.bio, profilePicture: updatedUser.profilePicture, isPrivate: updatedUser.isPrivate, isVerified: updatedUser.isVerified, followersCount: (updatedUser.followers || []).length, followingCount: (updatedUser.following || []).length });
+        // Return full profile data on update
+        const profileData = updatedUser.toJSON();
+        profileData.followersCount = (updatedUser.followers || []).length;
+        profileData.followingCount = (updatedUser.following || []).length;
+        profileData.isFollowedByMe = false; // Not relevant when updating own profile
+        profileData.hasPendingRequestFromMe = false; // Not relevant
+        res.json(profileData);
     })
 ];
 
+// --- UPDATED toggleAccountPrivacy function with DEBUGGING LOGS ---
 const toggleAccountPrivacy = [
     body('isPrivate').isBoolean().withMessage('isPrivate must be a boolean value'),
     asyncHandler(async (req, res, next) => {
         if (!checkValidation(req, next)) return;
-        const user = await User.findById(req.user.id); if (!user || user.status === 'deleted') return next(new AppError("User not found", 404));
-        user.isPrivate = req.body.isPrivate;
-        if (user.isPrivate === false && (user.pendingFollowRequests || []).length > 0) {
-            for (const requesterId of user.pendingFollowRequests) {
-                const requester = await User.findById(requesterId);
-                if (requester && !(user.followers || []).includes(requesterId)) user.followers = [...(user.followers || []), requesterId];
-                if (requester && !(requester.following || []).includes(user.id)) { requester.following = [...(requester.following || []), user.id]; await requester.save(); }
-            }
-            user.pendingFollowRequests = [];
+
+        const userId = req.user.id;
+        const { isPrivate: newPrivacyState } = req.body;
+
+        // Find the user first to get their pending requests if we're making the account public
+        const userBeforeUpdate = await User.findById(userId);
+        if (!userBeforeUpdate) {
+            return next(new AppError("User not found", 404));
         }
-        await user.save(); res.json({ message: `Account privacy set to ${user.isPrivate ? 'Private' : 'Public'}`, isPrivate: user.isPrivate });
+
+        // Prepare the update payload
+        const updatePayload = { isPrivate: newPrivacyState };
+
+        // Handle auto-approval logic if making account public
+        if (newPrivacyState === false && (userBeforeUpdate.pendingFollowRequests || []).length > 0) {
+            const pendingIds = userBeforeUpdate.pendingFollowRequests;
+            
+            // Add pending users to my followers list AND clear my pending list in one go
+            updatePayload.$addToSet = { followers: { $each: pendingIds } };
+            updatePayload.pendingFollowRequests = [];
+
+            // This updates OTHER users to add the current user to their 'following' list.
+            // This is a "fire and forget" operation; its success/failure won't block the main response.
+            User.updateMany(
+                { _id: { $in: pendingIds } },
+                { $addToSet: { following: userBeforeUpdate._id } }
+            ).exec();
+        }
+
+        // Perform the main update for the current user using findByIdAndUpdate
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            updatePayload,
+            { new: true, runValidators: true } // `new: true` returns the modified document
+        );
+        
+        if (!updatedUser) {
+             return next(new AppError("Could not update user privacy setting", 500));
+        }
+
+        res.json({
+            message: `Account privacy set to ${updatedUser.isPrivate ? 'Private' : 'Public'}`,
+            isPrivate: updatedUser.isPrivate // Return the confirmed new state from the database
+        });
     })
 ];
+// --- END OF UPDATE ---
 
 const changeUsername = [
     body('newUsername').trim().isLength({ min: 3, max: 30 }).withMessage('New username must be 3-30 characters').matches(/^[a-zA-Z0-9_]+$/).withMessage('Username can only contain alphanumeric characters and underscores'),

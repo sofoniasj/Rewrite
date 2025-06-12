@@ -4,14 +4,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { FaCheckCircle, FaSpinner, FaUserShield } from 'react-icons/fa';
+// FaUserCircle has been added to the import list
+import { FaCheckCircle, FaSpinner, FaUserShield, FaUserCircle } from 'react-icons/fa';
 
 const AdminVerificationRequestsPage = () => {
   const { apiClient, user } = useAuth(); // Ensure user is admin (handled by ProtectedRoute)
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [actionLoading, setActionLoading] = useState(null); // To show loading on specific button
+  const [actionLoading, setActionLoading] = useState(null);
 
   const fetchVerificationRequests = useCallback(async () => {
     setLoading(true);
@@ -29,31 +30,32 @@ const AdminVerificationRequestsPage = () => {
   }, [apiClient]);
 
   useEffect(() => {
+    // Component will only be rendered for admins, but this is a good safety check
     if (user?.role === 'admin') {
       fetchVerificationRequests();
     }
   }, [fetchVerificationRequests, user?.role]);
 
-  const handleApproveRequest = async (userIdToApprove) => {
-    if (!window.confirm(`Are you sure you want to approve verification for user ID: ${userIdToApprove}?`)) return;
+  const handleApproveRequest = async (userIdToApprove, username) => {
+    if (!window.confirm(`Are you sure you want to approve verification for user "${username}"?`)) return;
     
-    setActionLoading(userIdToApprove); // Set loading for this specific user's button
+    setActionLoading(userIdToApprove);
     setError('');
     try {
       const response = await apiClient.post(`/users/admin/verification-requests/${userIdToApprove}/approve`);
       alert(response.data.message || 'User verified successfully.');
-      // Refresh the list after approval
-      fetchVerificationRequests();
+      // Remove the user from the list to update the UI immediately
+      setRequests(prev => prev.filter(req => req.id !== userIdToApprove));
     } catch (err) {
       console.error("Failed to approve verification:", err);
       alert(err.response?.data?.error || 'Failed to approve verification.');
-      setError(`Failed to approve user ${userIdToApprove}: ${err.response?.data?.error || 'Unknown error'}`);
+      setError(`Failed to approve user ${username}: ${err.response?.data?.error || 'Unknown error'}`);
     } finally {
-      setActionLoading(null); // Clear loading for this user's button
+      setActionLoading(null);
     }
   };
 
-  if (loading && requests.length === 0) {
+  if (loading) {
     return <LoadingSpinner />;
   }
 
@@ -75,13 +77,13 @@ const AdminVerificationRequestsPage = () => {
       {requests.length > 0 && (
         <div className="table-responsive">
           <table className="table table-striped table-hover" style={{background:'#fff', borderRadius:'5px', overflow:'hidden'}}>
-            <thead className="thead-dark">
+            <thead className="thead-dark" style={{backgroundColor:'#343a40', color:'white'}}>
               <tr>
-                <th>Username</th>
-                <th>Profile Picture</th>
-                <th>Requested At</th>
-                <th>Joined At</th>
-                <th>Actions</th>
+                <th scope="col">Username</th>
+                <th scope="col">Avatar</th>
+                <th scope="col">Requested On</th>
+                <th scope="col">Joined</th>
+                <th scope="col">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -99,11 +101,11 @@ const AdminVerificationRequestsPage = () => {
                       <FaUserCircle size={30} style={{color:'#ccc'}}/>
                     )}
                   </td>
-                  <td>{reqUser.verificationRequestedAt ? format(new Date(reqUser.verificationRequestedAt), 'MMM d, yyyy, HH:mm') : 'N/A'}</td>
-                  <td>{reqUser.createdAt ? format(new Date(reqUser.createdAt), 'MMM d, yyyy') : 'N/A'}</td>
+                  <td>{reqUser.verificationRequestedAt ? format(new Date(reqUser.verificationRequestedAt), 'MMM d,, HH:mm') : 'N/A'}</td>
+                  <td>{reqUser.createdAt ? format(new Date(reqUser.createdAt), 'MMM d,colourCodeDict') : 'N/A'}</td>
                   <td>
                     <button
-                      onClick={() => handleApproveRequest(reqUser.id)}
+                      onClick={() => handleApproveRequest(reqUser.id, reqUser.username)}
                       className="btn btn-sm btn-success"
                       disabled={actionLoading === reqUser.id}
                       title={`Approve verification for ${reqUser.username}`}

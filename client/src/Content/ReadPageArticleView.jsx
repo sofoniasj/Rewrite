@@ -5,280 +5,198 @@ import VersionSelector from './VersionSelector';
 import LoadingSpinner from '../Common/LoadingSpinner';
 import ArticleForm from './ArticleForm';
 import { format, formatDistanceToNow } from 'date-fns';
-import { FaThumbsUp, FaRegThumbsUp, FaReply, FaSpinner, FaFlag, FaListUl, FaTimes } from 'react-icons/fa';
+import { 
+    FaThumbsUp, FaRegThumbsUp, FaReply, FaSpinner, FaFlag, FaRegFlag, FaListUl, 
+    FaTimes, FaEdit, FaSave, FaWindowClose, FaBookmark, FaRegBookmark 
+} from 'react-icons/fa';
+import { useLocation, useParams, useNavigate, Link } from 'react-router-dom';
 
-// --- LineageSegment Component Definition ---
-const LineageSegment = ({
-  content, color, onLikeThisSegment, onReportThisSegment,
-  onToggleReplyFormForThisSegment, isReplyingToThisSegment, onReplySuccessToThisSegment, onCancelReply,
-  onShowSiblingVersionsForThisSegment, isVersionSelectorOpenForThisSegment,
-}) => {
-    const { isAuthenticated, user, apiClient } = useAuth();
-    const [actionsPanelOpen, setActionsPanelOpen] = useState(false);
-    const [localLikeStatus, setLocalLikeStatus] = useState({ count: content.likeCount, likedByUser: false });
-    const [localReportStatus, setLocalReportStatus] = useState({ isReported: content.isReported || false, reportedByUser: false });
-    const [loadingLike, setLoadingLike] = useState(false);
-    const [loadingReport, setLoadingReport] = useState(false);
-
-    useEffect(() => {
-        setLocalLikeStatus({
-            count: content.likeCount,
-            likedByUser: isAuthenticated && content.likes ? content.likes.some(like => (typeof like === 'string' ? like : like.id) === user?.id) : false
-        });
-        setLocalReportStatus({
-            isReported: content.isReported || false,
-            reportedByUser: isAuthenticated && content.reports ? content.reports.some(report => (report.reporter === user?.id || report.reporter?._id === user?.id)) : false
-        });
-    }, [content, isAuthenticated, user]);
-
-    const handleMainSegmentClick = (e) => {
-        if (e.target.closest('button, a, form, input, textarea')) return;
-        setActionsPanelOpen(prev => !prev);
-        if (!actionsPanelOpen && isVersionSelectorOpenForThisSegment) {
-            onShowSiblingVersionsForThisSegment(content.id, false); // Request parent to close VersionSelector
-        }
-    };
-
-    const handleLikeBtnClick = async (e) => {
-        e.stopPropagation();
-        if (!isAuthenticated) return alert("Please log in to like.");
-        setLoadingLike(true);
-        try {
-            const { data } = await apiClient.post(`/content/${content.id}/like`);
-            setLocalLikeStatus({ count: data.likeCount, likedByUser: data.likes.some(like => (typeof like === 'string' ? like : like.id) === user?.id) });
-            if(onLikeThisSegment) onLikeThisSegment(content.id, data);
-        } catch (err) { console.error("Failed to like segment:", err); alert(err.response?.data?.error || "Like failed.");
-        } finally { setLoadingLike(false); }
-    };
-
-    const handleReportBtnClick = async (e) => {
-        e.stopPropagation();
-        if (!isAuthenticated) return alert("Please log in to report.");
-        if (localReportStatus.isReported && localReportStatus.reportedByUser) return alert("You have already reported this.");
-        if (localReportStatus.isReported && !localReportStatus.reportedByUser) return alert("This content has already been flagged.");
-        setLoadingReport(true);
-        try {
-            const { data } = await apiClient.post(`/content/${content.id}/report`, { reason: "Reported from lineage view" });
-            setLocalReportStatus({ isReported: data.isReported, reportedByUser: true });
-            alert("Content reported.");
-            if(onReportThisSegment) onReportThisSegment(content.id, data);
-        } catch (err) { console.error("Failed to report segment:", err); alert(err.response?.data?.error || "Report failed.");
-        } finally { setLoadingReport(false); }
-    };
-
-    const handleReplyToThisBtnClick = (e) => {
-        e.stopPropagation();
-        onToggleReplyFormForThisSegment(content.id);
-        setActionsPanelOpen(false);
-    };
-
-    const handleShowVersionsBtnClick = (e) => {
-        e.stopPropagation();
-        // This tells ReadPageArticleView to set the context for VersionSelector
-        onShowSiblingVersionsForThisSegment(content.id, true);
-        setActionsPanelOpen(false);
-    };
-
+const LineageSegmentDisplay = ({ content, color, onSegmentClick, isActiveForActions }) => {
+    const textToDisplay = content?.text || "[Content not available]";
+    const titleText = `Click to select: "${(content?.text || "").substring(0, 50)}..."`;
     return (
-        <div
-            className="lineage-segment card"
-            style={{ backgroundColor: color, border: (actionsPanelOpen || isVersionSelectorOpenForThisSegment || isReplyingToThisSegment) ? '2px solid #007bff' : '1px solid rgba(0,0,0,0.1)', marginBottom: '10px', padding: '15px'}}
-            onClick={handleMainSegmentClick}
+        <span
+            className="lineage-segment"
+            style={{
+                backgroundColor: color,
+                border: isActiveForActions ? '3px solid #0056b3' : '1px solid rgba(0,0,0,0.1)',
+                padding: '8px 12px', margin: '4px 2px', display: 'inline-block',
+                borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s ease',
+                boxShadow: isActiveForActions ? '0 0 8px rgba(0,86,179,0.3)' : '0 1px 2px rgba(0,0,0,0.05)',
+                transform: isActiveForActions ? 'scale(1.01)' : 'scale(1)',
+            }}
+            onClick={() => onSegmentClick(content)}
+            title={titleText}
         >
-            <div style={{cursor: 'pointer', marginBottom: (actionsPanelOpen || isReplyingToThisSegment) ? '10px' : '0'}}>
-                <p style={{ margin: 0 }}>{content.text}</p>
-                <small className="version-meta" style={{ display: 'block', marginTop: '5px', color: '#555' }}>
-                    By {content.author?.username || 'Unknown'} • {formatDistanceToNow(new Date(content.createdAt), { addSuffix: true })}
-                </small>
-            </div>
-            {actionsPanelOpen && !isReplyingToThisSegment && !isVersionSelectorOpenForThisSegment && (
-                <div className="segment-actions-panel" style={{marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #ccc', background: 'rgba(255,255,255,0.8)', padding: '10px', borderRadius:'4px'}}>
-                    <button onClick={handleLikeBtnClick} className="btn btn-sm btn-link" disabled={!isAuthenticated || loadingLike}>
-                        {loadingLike ? <FaSpinner className="icon spin" /> : (localLikeStatus.likedByUser ? <FaThumbsUp className="icon" color="blue"/> : <FaRegThumbsUp className="icon"/>)} Like ({localLikeStatus.count})
-                    </button>
-                    <button onClick={handleReportBtnClick} className="btn btn-sm btn-link" disabled={!isAuthenticated || loadingReport || (localReportStatus.isReported && localReportStatus.reportedByUser)}>
-                        {loadingReport ? <FaSpinner className="icon spin" /> : <FaFlag className="icon" />} {(localReportStatus.isReported && localReportStatus.reportedByUser) ? 'You Reported' : (localReportStatus.isReported ? 'Flagged' : 'Report')}
-                    </button>
-                    {isAuthenticated && (<button onClick={handleReplyToThisBtnClick} className="btn btn-sm btn-link"><FaReply className="icon" /> Reply to this</button>)}
-                    {content.parentContent && (<button onClick={handleShowVersionsBtnClick} className="btn btn-sm btn-link"><FaListUl className="icon" /> View Sibling Versions</button>)}
-                    <button onClick={(e) => {e.stopPropagation(); setActionsPanelOpen(false);}} className="btn btn-sm btn-link" style={{float: 'right', color: '#888'}} title="Close actions"><FaTimes /></button>
-                </div>
-            )}
-            {isReplyingToThisSegment && (
-                <div style={{marginTop: '1rem', padding: '10px', background: '#f9f9f9', borderRadius: '4px', border: '1px solid #eee'}}>
-                    <h6 style={{marginTop:0, marginBottom:'10px'}}>Replying to: "{content.text.substring(0,30)}..."</h6>
-                    <ArticleForm parentContentId={content.id} onPostSuccess={onReplySuccessToThisSegment} onCancel={() => onCancelReply(content.id)} />
-                </div>
-            )}
-        </div>
+            {textToDisplay}
+        </span>
     );
 };
-// --- End of LineageSegment Component ---
 
-const ReadPageArticleView = ({ initialLineage, rootArticleId, onLineageUpdate }) => {
-  const [currentLineage, setCurrentLineage] = useState(initialLineage || []);
-  // THIS STATE IS CRUCIAL: It holds the *full object* of the segment for VersionSelector
-  const [contextSegmentForVersionSelector, setContextSegmentForVersionSelector] = useState(null);
-  const [replyingToSegmentId, setReplyingToSegmentId] = useState(null);
-  const [loading, setLoading] = useState(false);
+const ReadPageArticleView = ({ initialLineage: propInitialLineage, rootArticleId: propRootArticleId, onLineageUpdateFromParent }) => {
+  const { articleId: paramArticleId } = useParams();
+  const rootArticleId = propRootArticleId || paramArticleId;
+  const [currentLineage, setCurrentLineage] = useState([]);
+  const [activeSegmentForActions, setActiveSegmentForActions] = useState(null);
+  const [showVersionSelectorFor, setShowVersionSelectorFor] = useState(null);
+  const [isReplyingToActiveSegment, setIsReplyingToActiveSegment] = useState(false);
+  const [isEditingActiveSegment, setIsEditingActiveSegment] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({ type: null, id: null });
   const [error, setError] = useState(null);
-  const { apiClient } = useAuth();
-
-  useEffect(() => {
-    setCurrentLineage(initialLineage || []);
-    setContextSegmentForVersionSelector(null); // Reset when lineage changes
-    setReplyingToSegmentId(null);
-  }, [initialLineage]);
-
-  const segmentColors = ['#eef2f7', '#fef9e7', '#eaf7e9', '#fbeee6', '#e8f8f5', '#f4ecf7'];
-
-  // Called by LineageSegment when its "View Sibling Versions" button is clicked
-  const handleShowSiblingVersionsForSegment = (segmentIdClicked, show) => {
-    const segmentObject = currentLineage.find(s => s.id === segmentIdClicked);
-
-    if (show && segmentObject && segmentObject.parentContent) {
-        console.log("ReadPageArticleView: Setting context segment for VersionSelector:", segmentObject); // DEBUG LOG
-        setContextSegmentForVersionSelector(segmentObject); // Pass the whole segment object
-        setReplyingToSegmentId(null); // Close any open reply form
-    } else {
-        console.log("ReadPageArticleView: Clearing context segment for VersionSelector."); // DEBUG LOG
-        setContextSegmentForVersionSelector(null);
-    }
-  };
-
-  const handleSelectVersionForLineage = async (selectedVersionId) => {
-    if (!contextSegmentForVersionSelector) {
-        console.error("Error: Context segment for version selection is missing when trying to select version.");
-        setError("An error occurred while updating the lineage (missing context).");
-        return;
-    }
-    const originalDepth = currentLineage.findIndex(s => s.id === contextSegmentForVersionSelector.id);
-    if (originalDepth === -1) {
-        console.error("Error: Cannot determine depth of original segment for version selection.");
-        setError("An error occurred while updating the lineage (cannot find original depth).");
-        return;
-    }
-
-    setLoading(true);
-    setError(null);
-    const previousContextSegmentId = contextSegmentForVersionSelector.id; // Save for logging
-    setContextSegmentForVersionSelector(null); // Close VersionSelector
-
-    try {
-      const { data: newPartialLineage } = await apiClient.get(`/content/${selectedVersionId}/lineage`);
-      if (!newPartialLineage || newPartialLineage.length === 0) {
-        throw new Error("Could not construct new lineage path from selected version.");
-      }
-      const newLineage = [ ...currentLineage.slice(0, originalDepth), ...newPartialLineage ];
-      setCurrentLineage(newLineage);
-      if (onLineageUpdate) onLineageUpdate(newLineage);
-      console.log(`ReadPageArticleView: Lineage updated with version ${selectedVersionId} for original segment ${previousContextSegmentId}`); // DEBUG LOG
-    } catch (err) {
-      console.error("Failed to update lineage with selected version:", err);
-      setError(err.response?.data?.error || "Failed to load selected version's lineage.");
-    } finally { setLoading(false); }
-  };
-
-  const handleContextSegmentUpdateInParent = (updatedSegmentData) => {
-      console.log("ReadPageArticleView: Context segment updated from VersionSelector:", updatedSegmentData); // DEBUG LOG
-      const updatedLineage = currentLineage.map(segment =>
-        segment.id === updatedSegmentData.id ? { ...segment, ...updatedSegmentData } : segment
-      );
-      setCurrentLineage(updatedLineage);
-      if (onLineageUpdate) onLineageUpdate(updatedLineage);
-
-      if (updatedSegmentData.action === 'reply_to_context_in_versions') {
-          refreshMainLineage();
-      }
-  };
+  const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
+  const [saveStatus, setSaveStatus] = useState({ message: '', type: '' });
+  const [isCurrentLineageSaved, setIsCurrentLineageSaved] = useState(false);
+  const { apiClient, user, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const segmentColors = ['#E6F2FF', '#FFF9E6', '#E6FFEB', '#FFEEF0', '#E6FFFA', '#F5E6FF'];
   
-  const refreshMainLineage = useCallback(() => {
-    console.log("ReadPageArticleView: Refreshing main lineage for root:", rootArticleId); // DEBUG LOG
-    setLoading(true);
+  const clearActionMessages = useCallback(() => { setActionError(''); setActionSuccess(''); }, []);
+
+  const handleSegmentDataChangeInLineage = useCallback((updatedSegmentData) => {
+      setCurrentLineage(current => {
+        const newLineage = current.map(segment => segment.id === updatedSegmentData.id ? { ...segment, ...updatedSegmentData } : segment);
+        if (onLineageUpdateFromParent) {
+            onLineageUpdateFromParent(newLineage);
+        }
+        return newLineage;
+      });
+      if (updatedSegmentData.action?.includes('versions')) {
+          refreshLineageAndSetActive(updatedSegmentData.id);
+      }
+  }, [onLineageUpdateFromParent]); // Removed currentLineage from dependencies
+
+  const checkIfLineageIsSaved = useCallback(async (lineageToCheck) => {
+    if (!isAuthenticated || !lineageToCheck || lineageToCheck.length === 0) { setIsCurrentLineageSaved(false); return; }
+    try { const { data: savedItems } = await apiClient.get('/users/me/saved-articles'); const currentPathIdsString = lineageToCheck.map(s => s.id).join(','); const found = savedItems.some(item => item.lineagePathIds?.map(p => typeof p === 'string' ? p : p._id).join(',') === currentPathIdsString); setIsCurrentLineageSaved(found);
+    } catch (err) { console.error("Error checking if lineage is saved:", err); setIsCurrentLineageSaved(false); }
+  }, [apiClient, isAuthenticated]);
+
+  const fetchAndSetLineage = useCallback(async () => {
+    if (!rootArticleId) { setError("Article ID not provided."); setLoading(false); setCurrentLineage([]); return; }
+    setLoading(true); setError(null); clearActionMessages(); setActiveSegmentForActions(null); setShowVersionSelectorFor(null); setIsReplyingToActiveSegment(false); setIsEditingActiveSegment(false);
+    try {
+        let lineageData = []; const passedPathIds = location.state?.initialPathIds?.map(id => id.toString());
+        if (passedPathIds && passedPathIds.length > 0) {
+            const pathSegmentsPromises = passedPathIds.map(id => apiClient.get(`/content/${id}`).then(res => res.data).catch(() => null));
+            let reconstructedPath = (await Promise.all(pathSegmentsPromises)).filter(s => s && s.id && typeof s.text === 'string');
+            if (reconstructedPath.length > 0) {
+                const lastSavedSegment = reconstructedPath[reconstructedPath.length - 1];
+                const { data: continuationData } = await apiClient.get(`/content/${lastSavedSegment.id}/lineage`);
+                const validContinuationData = (continuationData || []).filter(s => s && s.id && typeof s.text === 'string');
+                const continuationPath = validContinuationData[0]?.id === lastSavedSegment.id ? validContinuationData.slice(1) : validContinuationData;
+                lineageData = [...reconstructedPath, ...continuationPath];
+                if(reconstructedPath.length !== passedPathIds.length && lineageData.length > 0) setError("Note: Some parts of the saved lineage could not be loaded.");
+            } else { const { data: defaultData } = await apiClient.get(`/content/${rootArticleId}/lineage`); lineageData = (defaultData || []).filter(s => s && s.id && typeof s.text === 'string'); setError("Failed to reconstruct saved path. Showing default lineage."); }
+        } else { const { data: defaultData } = await apiClient.get(`/content/${rootArticleId}/lineage`); lineageData = (defaultData || []).filter(s => s && s.id && typeof s.text === 'string'); }
+        setCurrentLineage(lineageData); if (lineageData.length === 0) setError("No content found for this lineage.");
+    } catch (err) { console.error("Failed to fetch lineage:", err); setError(err.response?.data?.error || "Could not load content."); setCurrentLineage([]); }
+    finally { setLoading(false); }
+  }, [rootArticleId, apiClient, location.state, clearActionMessages]);
+
+  useEffect(() => { if (propInitialLineage?.length > 0 && !location.state?.initialPathIds) { setCurrentLineage(propInitialLineage.filter(s => s && s.id && typeof s.text === 'string')); setLoading(false); } else { fetchAndSetLineage(); }}, [fetchAndSetLineage, propInitialLineage, location.state?.initialPathIds]);
+  useEffect(() => { if (currentLineage?.length > 0) checkIfLineageIsSaved(currentLineage); else setIsCurrentLineageSaved(false); }, [currentLineage, checkIfLineageIsSaved]);
+
+  const handleSegmentClickForActionsPanel = (segment) => { if (!segment || !segment.id) return; clearActionMessages(); if (activeSegmentForActions?.id === segment.id && !isReplyingToActiveSegment && !isEditingActiveSegment && !showVersionSelectorFor) setActiveSegmentForActions(null); else setActiveSegmentForActions(segment); setIsReplyingToActiveSegment(false); setIsEditingActiveSegment(false); setShowVersionSelectorFor(null); };
+  
+  const refreshLineageAndSetActive = useCallback((actedUponSegmentId = null) => {
+    if (!rootArticleId) return; setLoading(true); clearActionMessages();
     apiClient.get(`/content/${rootArticleId}/lineage`)
-      .then(response => {
-        const refreshedLineage = response.data || [];
-        setCurrentLineage(refreshedLineage);
-        if (onLineageUpdate) onLineageUpdate(refreshedLineage);
-      })
-      .catch(err => {
-        console.error("Error refreshing lineage:", err);
-        setError("Could not refresh content. Please refresh the page.");
-      })
+      .then(response => { const refreshedLineage = (response.data || []).filter(s => s && s.id && typeof s.text === 'string'); setCurrentLineage(refreshedLineage); if (onLineageUpdateFromParent) onLineageUpdateFromParent(refreshedLineage); if (actedUponSegmentId) { const newActive = refreshedLineage.find(s => s.id === actedUponSegmentId); setActiveSegmentForActions(newActive || null);}})
+      .catch(err => { console.error("Error refreshing lineage:", err); setError("Could not refresh content."); })
       .finally(() => setLoading(false));
-  }, [apiClient, rootArticleId, onLineageUpdate]);
+  }, [apiClient, rootArticleId, onLineageUpdateFromParent, clearActionMessages]);
 
+  const handleLikeActiveSegment = useCallback(async () => {
+    if (!activeSegmentForActions || !isAuthenticated) return;
+    setActionLoading({ type: 'like', id: activeSegmentForActions.id }); clearActionMessages();
+    try { const { data } = await apiClient.post(`/content/${activeSegmentForActions.id}/like`); const updatedSegment = { ...activeSegmentForActions, likeCount: data.likeCount, likes: data.likes }; setActiveSegmentForActions(updatedSegment); handleSegmentDataChangeInLineage(updatedSegment); } catch (err) { setActionError(err.response?.data?.error || "Like failed."); } finally { setActionLoading({ type: null, id: null }); }
+  }, [apiClient, isAuthenticated, activeSegmentForActions, handleSegmentDataChangeInLineage, clearActionMessages]);
 
-  const handleToggleReplyFormForSegment = (segmentId) => {
-    setReplyingToSegmentId(prevId => (prevId === segmentId ? null : segmentId));
-    if (replyingToSegmentId !== segmentId) {
-        setContextSegmentForVersionSelector(null);
+  const handleToggleReportActiveSegment = useCallback(async () => {
+    if (!activeSegmentForActions || !isAuthenticated) return;
+    setActionLoading({ type: 'report', id: activeSegmentForActions.id }); clearActionMessages();
+    const currentUserHasReported = (activeSegmentForActions.reports || []).some(r => (r.reporter === user?.id || r.reporter?._id === user?.id));
+    try {
+        let response;
+        if (currentUserHasReported) { response = await apiClient.delete(`/content/${activeSegmentForActions.id}/report`); setActionSuccess("Your report has been removed."); }
+        else { response = await apiClient.post(`/content/${activeSegmentForActions.id}/report`, { reason: "Reported" }); setActionSuccess("Segment reported successfully."); }
+        const { data } = response;
+        const updatedSegment = { ...activeSegmentForActions, isReported: data.isReported, reportsCount: data.reportsCount, reports: data.currentUserReported ? [...(activeSegmentForActions.reports || []).filter(r => (r.reporter !== user?.id && r.reporter?._id !== user?.id)), {reporter: user?.id}] : (activeSegmentForActions.reports || []).filter(r => (r.reporter !== user?.id && r.reporter?._id !== user?.id)) };
+        setActiveSegmentForActions(updatedSegment); handleSegmentDataChangeInLineage(updatedSegment);
+    } catch (err) { setActionError(err.response?.data?.error || "Report action failed."); }
+    finally { setActionLoading({ type: null, id: null }); setTimeout(clearActionMessages, 4000); }
+  }, [apiClient, isAuthenticated, user, activeSegmentForActions, handleSegmentDataChangeInLineage, clearActionMessages]);
+
+  const handleReplyToActiveSegmentSuccess = useCallback((newReply) => {
+    setIsReplyingToActiveSegment(false);
+    setActionSuccess("Reply posted!");
+    const parentId = newReply.parentContent;
+    const parentIndex = currentLineage.findIndex(segment => segment.id === parentId);
+
+    if (parentIndex > -1) {
+        // Optimistically update the UI to preserve the current path
+        const newPath = [...currentLineage.slice(0, parentIndex + 1), newReply];
+        setCurrentLineage(newPath);
+        if (onLineageUpdateFromParent) {
+            onLineageUpdateFromParent(newPath); // Notify parent page of the new state
+        }
+        // Make the newly posted reply the active segment
+        setActiveSegmentForActions(newReply);
+    } else {
+        // Fallback: This is unexpected, but if the parent isn't found,
+        // a full refresh is a safe way to recover.
+        console.warn("Parent of reply not found in current lineage. Refreshing from root.");
+        refreshLineageAndSetActive(parentId);
     }
-  };
+    setTimeout(clearActionMessages, 4000);
+  }, [currentLineage, onLineageUpdateFromParent, refreshLineageAndSetActive, clearActionMessages]);
 
-  const handleReplySuccessToSegment = (newReply) => {
-    setReplyingToSegmentId(null);
-    refreshMainLineage();
-  };
+  const handleEditActiveSegmentSuccess = useCallback((updatedContent) => { setIsEditingActiveSegment(false); setActiveSegmentForActions(updatedContent); handleSegmentDataChangeInLineage(updatedContent); setActionSuccess("Segment updated!"); }, [handleSegmentDataChangeInLineage]);
+  const handleShowSiblingVersions = useCallback((segmentIdClicked, show) => { const segmentObject = currentLineage.find(s => s.id === segmentIdClicked); if (show && segmentObject && segmentObject.parentContent) { setShowVersionSelectorFor(segmentObject); setIsReplyingToActiveSegment(false); setEditingActiveSegment(false); setActiveSegmentForActions(null); clearActionMessages(); } else { setShowVersionSelectorFor(null); } }, [currentLineage, clearActionMessages]);
+  const handleSelectSiblingVersionForLineage = useCallback(async (selectedSiblingId) => { if (!showVersionSelectorFor) return setError("Error: Context missing."); const originalDepth = currentLineage.findIndex(s => s.id === showVersionSelectorFor.id); if (originalDepth === -1) return setError("Error: Depth not found."); setLoading(true); setError(null); clearActionMessages(); setShowVersionSelectorFor(null); try { const { data: newPartialLineageResponse } = await apiClient.get(`/content/${selectedSiblingId}/lineage`); const newPartialLineage = (newPartialLineageResponse || []).filter(s => s && s.id && typeof s.text === 'string'); if (newPartialLineage.length === 0) throw new Error("Could not construct path."); const newLineage = [ ...currentLineage.slice(0, originalDepth), ...newPartialLineage ]; setCurrentLineage(newLineage); setActiveSegmentForActions(newPartialLineage[0]); if (onLineageUpdateFromParent) onLineageUpdateFromParent(newLineage); } catch (err) { console.error("Failed to update lineage:", err); setError(err.response?.data?.error || "Failed to load lineage."); } finally { setLoading(false); } }, [apiClient, currentLineage, showVersionSelectorFor, onLineageUpdateFromParent, clearActionMessages]);
+  const handleSaveLineage = useCallback(async () => { if (!isAuthenticated || !currentLineage || currentLineage.length === 0) { alert("Please log in to save."); return; } const rootId = currentLineage[0].id; const lineagePathIdsToSend = currentLineage.map(segment => segment.id); setActionLoading({ type: 'save', id: rootId }); setSaveStatus({ message: '', type: '' }); clearActionMessages(); try { await apiClient.post('/users/me/saved-articles', { rootArticleId: rootId, lineagePathIds: lineagePathIdsToSend }); setSaveStatus({ message: 'Lineage saved!', type: 'success' }); setIsCurrentLineageSaved(true); } catch (err) { console.error("Failed to save lineage:", err); setSaveStatus({ message: err.response?.data?.error || "Failed to save.", type: 'error' }); } finally { setActionLoading({ type: null, id: null }); } }, [apiClient, isAuthenticated, currentLineage, clearActionMessages]);
 
+  if (loading && currentLineage.length === 0) return <LoadingSpinner />;
+  if (error && currentLineage.length === 0) return <p className="error-message text-center card p-3">{error}</p>;
+  if (!loading && currentLineage.length === 0 && !error) return <p className="text-center my-2">No content found.</p>;
 
-  if (!currentLineage || currentLineage.length === 0) {
-    return <p className="text-center my-2">No content to display for this article.</p>;
-  }
-  const rootArticle = currentLineage[0];
+  const rootDisplayArticle = currentLineage[0] || {};
+  const isAuthorOfActiveSegment = isAuthenticated && activeSegmentForActions && user?.id === activeSegmentForActions.author?.id;
+  const currentUserReportedActiveSegment = isAuthenticated && activeSegmentForActions && (activeSegmentForActions.reports || []).some(r => r.reporter === user?.id || r.reporter?._id === user?.id);
 
   return (
-    <div className="read-page-view">
-      {rootArticle.title && (
-        <h1 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px', fontSize: '1.8rem' }}>
-          {rootArticle.title}
-        </h1>
-      )}
-      {error && <p className="error-message text-center">{error}</p>}
-      {loading && <LoadingSpinner />}
-
-      <div className="concatenated-content-segments">
-        {currentLineage.map((content, index) => (
-          <LineageSegment
-            key={content.id + '-' + (content.updatedAt || content.createdAt) + '-' + (content.likes?.length || 0) + '-' + (content.reports?.length || 0)}
-            content={content}
-            color={segmentColors[index % segmentColors.length]}
-            onLikeThisSegment={handleContextSegmentUpdateInParent} 
-            onReportThisSegment={handleContextSegmentUpdateInParent} 
-            onToggleReplyFormForThisSegment={handleToggleReplyFormForSegment}
-            isReplyingToThisSegment={replyingToSegmentId === content.id}
-            onReplySuccessToThisSegment={handleReplySuccessToSegment}
-            onCancelReply={() => setReplyingToSegmentId(null)}
-            onShowSiblingVersionsForThisSegment={handleShowSiblingVersionsForSegment}
-            isVersionSelectorOpenForThisSegment={contextSegmentForVersionSelector?.id === content.id}
-          />
-        ))}
+    <div className="read-page-article-view">
+      {rootDisplayArticle.title && (<h1 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px', fontSize: '1.8rem' }}>{rootDisplayArticle.title}</h1>)}
+      {error && currentLineage.length > 0 && <p className="error-message text-center card p-2 mb-3">{error}</p>}
+      <div className="concatenated-lineage-display card" style={{padding: '15px', marginBottom: '20px', background:'#fff', lineHeight: '1.6', fontSize: '1.1rem'}}>
+        {currentLineage.map((content, index) => { if (!content || !content.id || typeof content.text !== 'string') return null; return ( <LineageSegmentDisplay key={content.id + '-' + content.updatedAt} content={content} color={segmentColors[index % segmentColors.length]} onSegmentClick={handleSegmentClickForActionsPanel} isActiveForActions={activeSegmentForActions?.id === content.id} /> ); })}
       </div>
-
-      <div className="card-meta" style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1rem', background: '#f9f9f9', padding: '1rem', borderRadius: '4px' }}>
-        <p><strong>Original Author:</strong> {rootArticle.author?.username || 'Unknown'} | <strong>Posted:</strong> {format(new Date(rootArticle.createdAt), 'PPP p')}</p>
-        {currentLineage.length > 1 && (
-          <p style={{ fontSize: '0.9em', color: '#555' }}>
-            Showing a top-liked path ({currentLineage.length - 1} {currentLineage.length === 2 ? 'reply' : 'replies'}).
-            Click a segment to interact or view sibling versions.
-          </p>
-        )}
-        {currentLineage.length === 1 && (
-          <p style={{ fontSize: '0.9em', color: '#555' }}>This article has no replies in the current top-liked path.</p>
-        )}
+      <div className="lineage-metadata card-meta" style={{ marginBottom: '20px', padding: '10px', background: '#f8f9fa', borderRadius: '4px', border:'1px solid #eee' }}>
+          <p style={{margin:0}}> <strong>Author:</strong> {rootDisplayArticle.author?.username || 'Unknown'} |{' '} <strong>Posted:</strong> {format(new Date(rootDisplayArticle.createdAt || Date.now()), 'PPP p')} |{' '} <strong>Likes:</strong> <FaThumbsUp size="0.8em"/> {rootDisplayArticle.likeCount || 0} </p>
+          {currentLineage.length > 1 && (<p style={{fontSize: '0.9em', color: '#555', margin:'5px 0 0 0'}}>Showing path ({currentLineage.length - 1} {currentLineage.length === 2 ? 'reply' : 'replies'}). Click a segment to select it for actions below.</p>)}
       </div>
-
-      {/* VersionSelector is rendered if contextSegmentForVersionSelector is set */}
-      {contextSegmentForVersionSelector && (
-        <VersionSelector
-        
-          contextSegment={contextSegmentForVersionSelector} // Pass the full segment object
-          onSelectVersion={handleSelectVersionForLineage}
-          onClose={() => setContextSegmentForVersionSelector(null)}
-          onContextSegmentUpdate={handleContextSegmentUpdateInParent} 
-          onNewVariationAdded={refreshMainLineage} 
-        />
+      {activeSegmentForActions && !showVersionSelectorFor && (
+        <div className="active-segment-actions-panel card" style={{padding: '15px', marginBottom: '20px', background:'#fff', border:'2px solid #007bff'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #eee', paddingBottom:'10px', marginBottom:'15px'}}>
+                <h5 style={{marginTop:0, marginBottom:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}> Actions for: <em style={{fontWeight:400, color:'#555'}}>"{activeSegmentForActions.text.substring(0,70)}..."</em></h5>
+                 <button onClick={() => {setActiveSegmentForActions(null); clearActionMessages();}} className="btn btn-sm btn-link" style={{color:'#aaa', padding:'0 5px'}} title="Close Actions Panel"><FaTimes/></button>
+            </div>
+            {actionError && <p className="error-message">{actionError}</p>} {actionSuccess && <p className="success-message">{actionSuccess}</p>}
+            <div style={{display:'flex', flexWrap:'wrap', gap:'10px', marginBottom: isReplyingToActiveSegment || isEditingActiveSegment ? '15px' : '0'}}>
+                <button onClick={handleLikeActiveSegment} className="btn btn-sm btn-outline-primary" disabled={!isAuthenticated || (actionLoading.type === 'like' && actionLoading.id === activeSegmentForActions.id)}> {(actionLoading.type === 'like' && actionLoading.id === activeSegmentForActions.id) ? <FaSpinner className="icon spin"/> : (activeSegmentForActions.likes?.some(l => (l.id || l) === user?.id) ? <FaThumbsUp/> : <FaRegThumbsUp/>)} Like ({activeSegmentForActions.likeCount || 0}) </button>
+                <button onClick={handleToggleReportActiveSegment} className="btn btn-sm btn-outline-danger" disabled={!isAuthenticated || (actionLoading.type === 'report' && actionLoading.id === activeSegmentForActions.id)}> {(actionLoading.type === 'report' && actionLoading.id === activeSegmentForActions.id) ? <FaSpinner className="icon spin"/> : (currentUserReportedActiveSegment ? <FaFlag color="red"/> : <FaRegFlag />)} {currentUserReportedActiveSegment ? 'Undo Report' : 'Report'} </button>
+                {isAuthenticated && (<button onClick={() => { setIsReplyingToActiveSegment(true); setIsEditingActiveSegment(false); clearActionMessages(); }} className="btn btn-sm btn-outline-secondary" disabled={isReplyingToActiveSegment}> <FaReply/> Reply </button> )}
+                {isAuthorOfActiveSegment && (<button onClick={() => { setIsEditingActiveSegment(true); setIsReplyingToActiveSegment(false); clearActionMessages(); }} className="btn btn-sm btn-outline-info" disabled={isEditingActiveSegment}> <FaEdit/> Edit </button> )}
+                {activeSegmentForActions.parentContent && (<button onClick={() => {setShowVersionSelectorFor(activeSegmentForActions); setActiveSegmentForActions(null); clearActionMessages();}} className="btn btn-sm btn-outline-success"> <FaListUl/> View/Manage Sibling Versions </button> )}
+            </div>
+            {isReplyingToActiveSegment && ( <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed #ccc'}}> <h6 style={{marginTop:0, marginBottom:'10px'}}>Your Reply:</h6> <ArticleForm parentContentId={activeSegmentForActions.id} onPostSuccess={handleReplyToActiveSegmentSuccess} onCancel={() => {setIsReplyingToActiveSegment(false); clearActionMessages();}}/> </div>)}
+            {isEditingActiveSegment && isAuthorOfActiveSegment && ( <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed #ccc'}}> <h6 style={{marginTop:0, marginBottom:'10px'}}>Editing Segment:</h6> <ArticleForm isEditMode={true} contentToEdit={activeSegmentForActions} onEditSuccess={handleEditActiveSegmentSuccess} onCancel={() => {setIsEditingActiveSegment(false); clearActionMessages();}}/> </div>)}
+        </div>
       )}
+      {isAuthenticated && currentLineage.length > 0 && !showVersionSelectorFor && ( <div className="save-lineage-section card-meta" style={{ marginTop: '1.5rem', paddingTop: '1rem', textAlign: 'center', borderTop: '1px solid #eee' }}> {saveStatus.message && (<p className={saveStatus.type === 'success' ? 'success-message' : 'error-message'}>{saveStatus.message}</p>)} <button onClick={handleSaveLineage} className={`btn ${isCurrentLineageSaved ? 'btn-light text-success' : 'btn-info'}`} disabled={(actionLoading.type === 'save') || isCurrentLineageSaved} title={isCurrentLineageSaved ? "Path already saved" : "Save current lineage"}> {(actionLoading.type === 'save') ? <FaSpinner className="spin"/> : (isCurrentLineageSaved ? <FaBookmark/> : <FaRegBookmark/>)} {isCurrentLineageSaved ? 'Lineage Saved' : 'Save this Lineage'} </button> </div> )}
+      {showVersionSelectorFor && ( <VersionSelector contextSegment={showVersionSelectorFor} onSelectVersion={handleSelectSiblingVersionForLineage} onSiblingReplied={handleSelectSiblingVersionForLineage} onClose={() => { setShowVersionSelectorFor(null); setActiveSegmentForActions(showVersionSelectorFor); clearActionMessages();}} onContextSegmentUpdate={handleSegmentDataChangeInLineage} onNewVariationAdded={() => refreshLineageAndSetActive(showVersionSelectorFor?.id)} /> )}
     </div>
   );
 };

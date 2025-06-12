@@ -280,63 +280,35 @@ const toggleLikeContent = [
 // @access  Private
 const reportContent = [
     param('id').isMongoId().withMessage('Invalid content ID format'),
-    body('reason').optional().trim().isLength({ max: 200 }).withMessage('Report reason cannot exceed 200 characters'),
+    body('reason').optional().trim().isLength({ max: 200 }),
     asyncHandler(async (req, res, next) => {
         if (!checkValidation(req, next)) return;
-        const { reason } = req.body; const content = await Content.findById(req.params.id); if (!content) return next(new AppError('Content not found', 404));
-        const userId = req.user.id; const alreadyReported = content.reports.find(report => report.reporter.toString() === userId.toString());
+        const { reason } = req.body; const content = await Content.findById(req.params.id);
+        if (!content) return next(new AppError('Content not found', 404));
+        const userId = req.user.id;
+        const alreadyReported = content.reports.some(r => r.reporter.toString() === userId.toString());
         if (alreadyReported) return next(new AppError('You have already reported this content', 400));
         content.reports.push({ reporter: userId, reason: reason || "No reason provided" });
-        await content.save(); // Pre-save hook updates isReported
-        res.json({ message: 'Content reported successfully', contentId: content.id, isReported: content.isReported, reportsCount: content.reports.length });
+        await content.save();
+        // Re-fetch to get populated data and send back the full object
+        const updatedContent = await Content.findById(content.id).populate('author', 'username profilePicture isVerified').populate('reports.reporter', 'id username');
+        res.json(updatedContent);
     }),
 ];
 
-// @desc    Un-report content (remove current user's report)
-// @route   DELETE /api/content/:id/report
-// @access  Private
 const unreportContent = [
     param('id').isMongoId().withMessage('Invalid content ID format'),
     asyncHandler(async (req, res, next) => {
         if (!checkValidation(req, next)) return;
-
-        const contentId = req.params.id;
-        const currentUserId = req.user.id;
-
-        const content = await Content.findById(contentId);
-
-        if (!content) {
-            return next(new AppError('Content not found', 404));
-        }
-
-        const reportIndex = content.reports.findIndex(
-            report => report.reporter.toString() === currentUserId.toString()
-        );
-
-        if (reportIndex === -1) {
-            // This case implies the user hadn't reported it, or it was already removed.
-            // For a toggle, this might mean the frontend state was out of sync.
-            // Returning a success-like response with current state can help frontend sync.
-            return res.json({
-                message: 'No active report by you found for this content.',
-                contentId: content.id,
-                isReported: content.isReported,
-                reportsCount: content.reports.length,
-                currentUserReported: false
-            });
-        }
-
-        content.reports.splice(reportIndex, 1);
-        // The pre-save hook on the Content model will update 'isReported' and 'updatedAt'
+        const content = await Content.findById(req.params.id);
+        if (!content) return next(new AppError('Content not found', 404));
+        const initialReportsLength = content.reports.length;
+        content.reports = content.reports.filter(r => r.reporter.toString() !== req.user.id.toString());
+        if (content.reports.length === initialReportsLength) return next(new AppError('No active report by you found.', 400));
         await content.save();
-
-        res.json({
-            message: 'Your report has been removed.',
-            contentId: content.id,
-            isReported: content.isReported, // The global reported status
-            reportsCount: content.reports.length,
-            currentUserReported: false // For immediate UI update
-        });
+        // Re-fetch to get populated data and send back the full object
+        const updatedContent = await Content.findById(content.id).populate('author', 'username profilePicture isVerified').populate('reports.reporter', 'id username');
+        res.json(updatedContent);
     })
 ];
 
