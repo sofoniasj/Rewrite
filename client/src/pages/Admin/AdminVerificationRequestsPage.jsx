@@ -3,12 +3,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
-// FaUserCircle has been added to the import list
+import { format, isValid } from 'date-fns'; // Import isValid to check dates
 import { FaCheckCircle, FaSpinner, FaUserShield, FaUserCircle } from 'react-icons/fa';
 
 const AdminVerificationRequestsPage = () => {
-  const { apiClient, user } = useAuth(); // Ensure user is admin (handled by ProtectedRoute)
+  const { apiClient, user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,7 +29,6 @@ const AdminVerificationRequestsPage = () => {
   }, [apiClient]);
 
   useEffect(() => {
-    // Component will only be rendered for admins, but this is a good safety check
     if (user?.role === 'admin') {
       fetchVerificationRequests();
     }
@@ -44,7 +42,6 @@ const AdminVerificationRequestsPage = () => {
     try {
       const response = await apiClient.post(`/users/admin/verification-requests/${userIdToApprove}/approve`);
       alert(response.data.message || 'User verified successfully.');
-      // Remove the user from the list to update the UI immediately
       setRequests(prev => prev.filter(req => req.id !== userIdToApprove));
     } catch (err) {
       console.error("Failed to approve verification:", err);
@@ -54,6 +51,17 @@ const AdminVerificationRequestsPage = () => {
       setActionLoading(null);
     }
   };
+
+  // Helper function to safely format dates
+  const formatDateSafe = (dateString, formatStr) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isValid(date)) { // Check if the date is valid before formatting
+        return format(date, formatStr);
+    }
+    return 'Invalid Date';
+  };
+
 
   if (loading) {
     return <LoadingSpinner />;
@@ -95,14 +103,16 @@ const AdminVerificationRequestsPage = () => {
                     </Link>
                   </td>
                   <td>
-                    {reqUser.profilePicture ? (
-                      <img src={reqUser.profilePicture} alt={reqUser.username} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} onError={(e) => e.target.style.display='none'}/>
-                    ) : (
-                      <FaUserCircle size={30} style={{color:'#ccc'}}/>
-                    )}
+                    <img 
+                        src={reqUser.profilePicture || `https://placehold.co/40x40/6c757d/FFF?text=${reqUser.username.charAt(0).toUpperCase()}`} 
+                        alt={reqUser.username} 
+                        style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} 
+                        onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/40x40/ccc/FFF?text=Err`; }}
+                    />
                   </td>
-                  <td>{reqUser.verificationRequestedAt ? format(new Date(reqUser.verificationRequestedAt), 'MMM d,, HH:mm') : 'N/A'}</td>
-                  <td>{reqUser.createdAt ? format(new Date(reqUser.createdAt), 'MMM d,colourCodeDict') : 'N/A'}</td>
+                  {/* Using the safe formatting function */}
+                  <td>{formatDateSafe(reqUser.verificationRequestedAt, 'MMM d, yyyy, p')}</td>
+                  <td>{formatDateSafe(reqUser.createdAt, 'MMM d, yyyy')}</td>
                   <td>
                     <button
                       onClick={() => handleApproveRequest(reqUser.id, reqUser.username)}
