@@ -1,75 +1,71 @@
 // Rewrite/client/src/pages/Profile/ProfileRequestVerificationTab.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { FaCheckCircle, FaHourglassHalf, FaPaperPlane, FaSpinner } from 'react-icons/fa';
 
 const ProfileRequestVerificationTab = () => {
-  const { user, apiClient, fetchUserProfile } = useAuth();
-  // Local state to manage request status, separate from the main user object for immediate feedback
-  const [isVerified, setIsVerified] = useState(user?.isVerified || false);
-  const [verificationRequestedAt, setVerificationRequestedAt] = useState(user?.verificationRequestedAt || null);
-  const [loading, setLoading] = useState(false);
+  // Use the global user object as the single source of truth
+  const { user, loading: authLoading, apiClient, fetchUserProfile } = useAuth();
+  
+  // Local state is only for UI feedback (loading and messages)
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => {
-    // Sync with global user state
-    if (user) {
-      setIsVerified(user.isVerified);
-      setVerificationRequestedAt(user.verificationRequestedAt);
-    }
-  }, [user]);
-
   const handleRequestVerification = async () => {
-    setLoading(true);
+    setActionLoading(true);
     setError('');
     setSuccessMessage('');
     try {
       const response = await apiClient.post('/users/me/request-verification');
       setSuccessMessage(response.data.message || 'Verification request submitted successfully.');
-      // Update local state to reflect request was made
-      setVerificationRequestedAt(new Date().toISOString()); // Set to now
-      // Re-fetch user profile to get the latest verificationRequestedAt from backend
+      
+      // Re-fetch user profile to update the verificationRequestedAt timestamp in the context.
+      // This will cause this component to re-render with the new, correct data.
       if (fetchUserProfile) {
         await fetchUserProfile(localStorage.getItem('rewriteToken'));
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to submit verification request.');
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
-  if (!user) {
-    return <LoadingSpinner />;
+  if (authLoading) {
+    return <p className="text-center text-muted">Loading user data...</p>;
   }
 
+  if (!user) {
+    return <p className="error-message text-center">Could not load user data.</p>;
+  }
+
+  // --- DERIVE ALL STATE DIRECTLY FROM THE USER CONTEXT ---
+  const isVerified = user.isVerified || false;
+  const verificationRequestedAt = user.verificationRequestedAt || null;
+
+  // Determine if user is eligible to submit a new request based on the current context data.
+  // This logic is now always in sync with the single source of truth.
   const canRequestVerification = !isVerified && 
                                  (!verificationRequestedAt || 
                                   (new Date() - new Date(verificationRequestedAt) > 1000 * 60 * 60 * 24 * 7)); // 7-day cooldown
 
-  let statusMessage = "";
-  let statusIcon = null;
+  let statusMessage, statusIcon;
 
   if (isVerified) {
     statusMessage = "Your account is verified.";
-    statusIcon = <FaCheckCircle style={{ color: 'green', marginRight: '8px' }} />;
-  } else if (verificationRequestedAt) {
-    const sevenDaysAgo = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7);
-    if (new Date(verificationRequestedAt) > sevenDaysAgo) {
-        statusMessage = `You have requested verification on ${new Date(verificationRequestedAt).toLocaleDateString()}. Please allow up to 7 days for review. You can request again after this period if not approved.`;
-        statusIcon = <FaHourglassHalf style={{ color: 'orange', marginRight: '8px' }} />;
-    } else {
-        // Older request, not yet approved, can request again
-        statusMessage = "Your previous verification request is older than 7 days. You can submit a new request.";
-        statusIcon = <FaPaperPlane style={{ color: '#007bff', marginRight: '8px' }} />;
-    }
+    statusIcon = <FaCheckCircle className="text-success" style={{ marginRight: '8px' }} />;
+  } else if (verificationRequestedAt && !canRequestVerification) {
+    // This condition means a request was made within the last 7 days.
+    statusMessage = `You requested verification on ${new Date(verificationRequestedAt).toLocaleDateString()}. Please allow up to 7 days for review. You can request again after this period if not approved.`;
+    statusIcon = <FaHourglassHalf style={{ color: 'orange', marginRight: '8px' }} />;
   } else {
-    statusMessage = "Your account is not verified. You can request verification.";
+    // This covers two cases:
+    // 1. Never requested before (verificationRequestedAt is null).
+    // 2. Requested more than 7 days ago, but was not approved.
+    statusMessage = "Your account is not verified. You can submit a request for review.";
     statusIcon = <FaPaperPlane style={{ color: '#007bff', marginRight: '8px' }} />;
   }
-
 
   return (
     <div className="profile-verification-tab">
@@ -87,10 +83,10 @@ const ProfileRequestVerificationTab = () => {
           <button
             onClick={handleRequestVerification}
             className="btn btn-primary"
-            disabled={loading}
+            disabled={actionLoading}
             style={{minWidth:'180px'}}
           >
-            {loading ? <><FaSpinner className="spin" style={{marginRight:'5px'}} />Submitting...</> : 'Request Verification'}
+            {actionLoading ? <><FaSpinner className="spin" style={{marginRight:'5px'}} />Submitting...</> : 'Request Verification'}
           </button>
         )}
 
@@ -101,10 +97,9 @@ const ProfileRequestVerificationTab = () => {
             <p><strong>Why get verified?</strong></p>
             <ul style={{paddingLeft:'20px', margin:'0.5rem 0'}}>
                 <li>A verification badge <FaCheckCircle style={{color:'dodgerblue'}}/> helps establish authenticity.</li>
-                <li>It can increase trust within the community.</li>
-                <li>Verification criteria are determined by platform administrators.</li>
+                <li>It increases trust within the community.</li>
+                <li>Verification is granted by platform administrators based on internal criteria.</li>
             </ul>
-            <p>Please ensure your profile information (like bio) is complete and accurate before requesting.</p>
         </div>
       </div>
     </div>

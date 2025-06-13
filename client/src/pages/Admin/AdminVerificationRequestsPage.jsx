@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { Link } from 'react-router-dom';
-import { format, isValid } from 'date-fns'; // Import isValid to check dates
-import { FaCheckCircle, FaSpinner, FaUserShield, FaUserCircle } from 'react-icons/fa';
+import { format, isValid } from 'date-fns';
+import { FaCheckCircle, FaSpinner, FaUserShield, FaSearch } from 'react-icons/fa';
 
 const AdminVerificationRequestsPage = () => {
   const { apiClient, user } = useAuth();
@@ -12,6 +12,7 @@ const AdminVerificationRequestsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [searchTerm, setSearchTerm] = useState(''); // State for the search bar
 
   const fetchVerificationRequests = useCallback(async () => {
     setLoading(true);
@@ -52,16 +53,16 @@ const AdminVerificationRequestsPage = () => {
     }
   };
 
-  // Helper function to safely format dates
   const formatDateSafe = (dateString, formatStr) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    if (isValid(date)) { // Check if the date is valid before formatting
-        return format(date, formatStr);
-    }
-    return 'Invalid Date';
+    return isValid(date) ? format(date, formatStr) : 'Invalid Date';
   };
 
+  // Filter requests based on the search term
+  const filteredRequests = requests.filter(req => 
+    req.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return <LoadingSpinner />;
@@ -76,13 +77,30 @@ const AdminVerificationRequestsPage = () => {
         </button>
       </div>
 
+      {/* Search Bar */}
+      <div className="form-group" style={{ maxWidth: '400px', marginBottom: '1.5rem', position: 'relative' }}>
+          <FaSearch style={{ position: 'absolute', top: '13px', left: '12px', color: '#aaa' }}/>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search by username..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '35px' }}
+          />
+      </div>
+
       {error && <p className="error-message text-center card" style={{padding:'1rem', marginBottom:'1rem'}}>{error}</p>}
+
+      {!loading && requests.length > 0 && filteredRequests.length === 0 && (
+        <p className="text-center card" style={{padding:'1.5rem'}}>No users match your search term.</p>
+      )}
 
       {!loading && requests.length === 0 && (
         <p className="text-center card" style={{padding:'1.5rem'}}>No pending verification requests at this time.</p>
       )}
 
-      {requests.length > 0 && (
+      {filteredRequests.length > 0 && (
         <div className="table-responsive">
           <table className="table table-striped table-hover" style={{background:'#fff', borderRadius:'5px', overflow:'hidden'}}>
             <thead className="thead-dark" style={{backgroundColor:'#343a40', color:'white'}}>
@@ -95,7 +113,7 @@ const AdminVerificationRequestsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {requests.map(reqUser => (
+              {filteredRequests.map(reqUser => (
                 <tr key={reqUser.id}>
                   <td>
                     <Link to={`/profile/${reqUser.username}`} target="_blank" rel="noopener noreferrer" title={`View ${reqUser.username}'s profile`}>
@@ -110,7 +128,6 @@ const AdminVerificationRequestsPage = () => {
                         onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/40x40/ccc/FFF?text=Err`; }}
                     />
                   </td>
-                  {/* Using the safe formatting function */}
                   <td>{formatDateSafe(reqUser.verificationRequestedAt, 'MMM d, yyyy, p')}</td>
                   <td>{formatDateSafe(reqUser.createdAt, 'MMM d, yyyy')}</td>
                   <td>
