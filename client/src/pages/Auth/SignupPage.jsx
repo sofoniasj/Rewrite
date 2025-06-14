@@ -1,159 +1,233 @@
-// Rewrite/client/src/pages/Auth/SignupPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import ReCAPTCHA from 'react-google-recaptcha';
+import axios from 'axios'; // ✅ FIX: use axios directly
 import { useAuth } from '../../contexts/AuthContext';
-import LoadingSpinner from '../../components/Common/LoadingSpinner';
-import Modal from '../../components/Common/Modal'; // We'll create this simple modal
+import Modal from '../../components/Common/Modal';
+import { FaSpinner } from 'react-icons/fa';
 
 const SignupPage = () => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false); // ✅ FIX: moved hook outside of handleSubmit
 
+  const recaptchaRef = useRef();
   const { signup, loading, error, clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Clear errors when component mounts or location changes
+  const RECAPTCHA_SITE_KEY = "6LeKjF8rAAAAAK0UI00zgv_JntvqlPe8-kw72WvQ";
+
   useEffect(() => {
     clearError();
-    setPasswordError('');
+    setFormError('');
   }, [location, clearError]);
 
-   // Redirect if already logged in
-   useEffect(() => {
+  useEffect(() => {
     if (isAuthenticated) {
-      navigate(location.state?.from || '/'); // Redirect to previous page or home
+      navigate(location.state?.from || '/');
     }
   }, [isAuthenticated, navigate, location.state]);
 
+  const handleCaptchaChange = (token) => {
+    setCaptchaToken(token);
+    setFormError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    clearError(); // Clear context errors
-    setPasswordError(''); // Clear local password mismatch error
+    setFormError('');
+    setFormSuccess('');
 
     if (password !== confirmPassword) {
-      setPasswordError('Passwords do not match');
+      setFormError('Passwords do not match');
       return;
     }
+
     if (!agreedToTerms) {
-        setPasswordError('You must agree to the terms and conditions to sign up.');
-        return;
+      setFormError('You must agree to the terms and conditions.');
+      return;
     }
 
-    const success = await signup(username, password, agreedToTerms);
-    // Navigation is handled within the signup function upon success
-    if (!success) {
-      // Handle signup failure (error state is updated in context)
-       console.log("Signup failed from page");
+    if (!captchaToken) {
+      setFormError('Please complete the CAPTCHA verification.');
+      return;
+    }
+
+    setActionLoading(true);
+
+    try {
+      const { data } = await axios.post(
+        'https://rewriteb.onrender.com/api/auth/signup', // ✅ Replace with your backend URL if hosted
+        {
+          username,
+          email,
+          password,
+          agreedToTerms,
+          captchaToken,
+        },
+        { withCredentials: true }
+      );
+
+      setFormSuccess(data.message || 'Registration successful! Please check your email to verify your account.');
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setAgreedToTerms(false);
+      recaptchaRef.current.reset();
+      setCaptchaToken(null);
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Signup failed. Please try again.');
+      recaptchaRef.current.reset();
+      setCaptchaToken(null);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const openTermsModal = (e) => {
-    e.preventDefault(); // Prevent link navigation
+    e.preventDefault();
     setIsTermsModalOpen(true);
-  }
+  };
+
   const closeTermsModal = () => setIsTermsModalOpen(false);
 
   return (
     <div className="auth-page card" style={{ maxWidth: '450px', margin: '2rem auto' }}>
       <h1 className="text-center card-title">Sign Up</h1>
-      {loading && <LoadingSpinner />}
-      {error && <p className="error-message text-center">{error}</p>}
-      {passwordError && <p className="error-message text-center">{passwordError}</p>}
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="signup-username">Username</label>
-          <input
-            type="text"
-            id="signup-username"
-            className="form-control"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            minLength="3"
-            maxLength="30"
-            pattern="^[a-zA-Z0-9_]+$" // Match backend validation
-            title="Username must be 3-30 characters and contain only letters, numbers, and underscores."
-            disabled={loading}
-            autoComplete="username"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="signup-password">Password</label>
-          <input
-            type="password"
-            id="signup-password"
-            className="form-control"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength="6"
-            disabled={loading}
-            autoComplete="new-password"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="confirm-password">Confirm Password</label>
-          <input
-            type="password"
-            id="confirm-password"
-            className="form-control"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength="6"
-            disabled={loading}
-            autoComplete="new-password"
-          />
-        </div>
-        <div className="form-check">
-          <input
-            type="checkbox"
-            id="terms"
-            className="form-check-input"
-            checked={agreedToTerms}
-            onChange={(e) => setAgreedToTerms(e.target.checked)}
-            required
-            disabled={loading}
-          />
-          <label htmlFor="terms" className="form-check-label">
-            I agree to the{' '}
-            <a href="#" onClick={openTermsModal}>
-              Terms and Conditions
-            </a>
-          </label>
-        </div>
-        <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading || !agreedToTerms}>
-          {loading ? 'Signing Up...' : 'Sign Up'}
-        </button>
-      </form>
-      <p className="text-center my-1">
-        Already have an account? <Link to="/login">Login</Link>
-      </p>
 
-      {/* Terms and Conditions Modal */}
+      {formSuccess ? (
+        <div className="success-message text-center" style={{ padding: '1rem', border: '1px solid #c3e6cb', borderRadius: '4px', backgroundColor: '#d4edda' }}>
+          <p>{formSuccess}</p>
+          <p>You can close this page.</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          {formError && <p className="error-message text-center">{formError}</p>}
+
+          <div className="form-group">
+            <label htmlFor="signup-username">Username</label>
+            <input
+              type="text"
+              id="signup-username"
+              className="form-control"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              minLength="3"
+              maxLength="30"
+              pattern="^[a-zA-Z0-9_]+$"
+              title="Username must be 3-30 characters and contain only letters, numbers, and underscores."
+              disabled={loading}
+              autoComplete="username"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="signup-email">Email Address</label>
+            <input
+              type="email"
+              id="signup-email"
+              className="form-control"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
+              autoComplete="email"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="signup-password">Password</label>
+            <input
+              type="password"
+              id="signup-password"
+              className="form-control"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength="6"
+              disabled={loading}
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirm-password">Confirm Password</label>
+            <input
+              type="password"
+              id="confirm-password"
+              className="form-control"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength="6"
+              disabled={loading}
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'center' }}>
+            <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} onChange={handleCaptchaChange} />
+          </div>
+
+          <div className="form-check">
+            <input
+              type="checkbox"
+              id="terms"
+              className="form-check-input"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              required
+              disabled={loading}
+            />
+            <label htmlFor="terms" className="form-check-label">
+              I agree to the{' '}
+              <a href="#" onClick={openTermsModal}>
+                Terms and Conditions
+              </a>
+            </label>
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading || actionLoading}>
+            {actionLoading ? (
+              <>
+                <FaSpinner className="spin" style={{ marginRight: '5px' }} />
+                Signing Up...
+              </>
+            ) : (
+              'Sign Up'
+            )}
+          </button>
+        </form>
+      )}
+
+      {!formSuccess && (
+        <p className="text-center my-1">
+          Already have an account? <Link to="/login">Login</Link>
+        </p>
+      )}
+
       <Modal isOpen={isTermsModalOpen} onClose={closeTermsModal} title="Terms and Conditions">
-          <p><strong>Last Updated: {new Date().toLocaleDateString()}</strong></p>
-          <p>Welcome to Rewrite!</p>
-          <p>By signing up and using our service, you agree to the following terms:</p>
-          <ul>
-              <li>You must provide accurate information during registration.</li>
-              <li>Your username must be unique and cannot be offensive.</li>
-              <li>You are responsible for maintaining the confidentiality of your password.</li>
-              <li>You will not post content that is illegal, harmful, threatening, abusive, harassing, defamatory, vulgar, obscene, or invasive of another's privacy.</li>
-              <li>Content you post must be original or you must have the rights to post it.</li>
-              <li>We reserve the right to remove content or suspend accounts that violate these terms without notice.</li>
-              <li>You grant Rewrite a non-exclusive, worldwide, royalty-free license to use, reproduce, modify, and display the content you post solely for the purpose of operating and providing the Rewrite service.</li>
-              <li>The "Like" and "Report" features should be used genuinely and not for manipulation or harassment.</li>
-              <li>We may update these terms from time to time. Continued use of the service after changes constitutes acceptance of the new terms.</li>
-              <li>This service is provided "as is" without warranties of any kind.</li>
-          </ul>
-          <p>Please use Rewrite responsibly.</p>
-          <button onClick={closeTermsModal} className="btn btn-primary" style={{marginTop: '15px'}}>Close</button>
+        <p>Welcome to Rewrite!</p>
+        <p>By signing up and using our service, you agree to the following terms:</p>
+        <ul>
+          <li>You must provide accurate information during registration.</li>
+          <li>Your username and email must be unique.</li>
+          <li>You are responsible for maintaining the confidentiality of your password.</li>
+          <li>We reserve the right to remove content or suspend accounts that violate these terms without notice.</li>
+        </ul>
+        <button onClick={closeTermsModal} className="btn btn-primary" style={{ marginTop: '15px' }}>
+          Close
+        </button>
       </Modal>
     </div>
   );

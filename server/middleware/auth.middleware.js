@@ -8,33 +8,29 @@ import AppError from '../utils/AppError.js';
 const protect = asyncHandler(async (req, res, next) => {
   let token;
 
-  // Check for token in Authorization header (Bearer token)
+  // Check for token in Authorization header (format: "Bearer <token>")
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
   ) {
     try {
+      // Get token from header
       token = req.headers.authorization.split(' ')[1];
 
-      // Verify the token
+      // Verify the token using the secret key
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from the token's ID and attach to request object
-      // Exclude passwordHash from being selected
-      req.user = await User.findById(decoded.id).select('-passwordHash');
+      // Find the user by the ID from the token's payload
+      // Exclude the passwordHash from being returned
+      // Also ensure the user is not deleted
+      req.user = await User.findOne({ _id: decoded.id, status: 'active' }).select('-passwordHash');
 
       if (!req.user) {
-        return next(new AppError('No user found with this ID', 401));
+        return next(new AppError('No active user found with this token', 401));
       }
-      next();
+      next(); // Proceed to the next middleware or controller
     } catch (error) {
       console.error('Token verification failed:', error.message);
-      if (error.name === 'JsonWebTokenError') {
-        return next(new AppError('Not authorized, token failed (invalid signature)', 401));
-      }
-      if (error.name === 'TokenExpiredError') {
-        return next(new AppError('Not authorized, token expired', 401));
-      }
       return next(new AppError('Not authorized, token failed', 401));
     }
   }
@@ -56,8 +52,7 @@ const authorize = (...roles) => {
   };
 };
 
-// Specific admin authorization middleware
+// Specific admin authorization middleware for convenience
 const admin = authorize('admin');
-
 
 export { protect, admin, authorize };

@@ -5,34 +5,20 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // Can be username OR email
   const [password, setPassword] = useState('');
   const { login, loading, error, clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Clear errors when component mounts or location changes
-  useEffect(() => {
-    clearError();
-  }, [location, clearError]);
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate(location.state?.from || '/'); // Redirect to previous page or home
-    }
-  }, [isAuthenticated, navigate, location.state]);
-
+  useEffect(() => { clearError(); }, [location, clearError]);
+  useEffect(() => { if (isAuthenticated) navigate(location.state?.from || '/'); }, [isAuthenticated, navigate, location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    clearError(); // Clear previous errors before attempting login
+    clearError();
     const success = await login(username, password);
-    // Navigation is handled within the login function upon success
-    if (!success) {
-      // Handle login failure (error state is updated in context)
-      console.log("Login failed from page");
-    }
+    if (!success) { /* Handle login failure (error state is updated in context) */ }
   };
 
   return (
@@ -42,38 +28,21 @@ const LoginPage = () => {
       {error && <p className="error-message text-center">{error}</p>}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            className="form-control"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            disabled={loading}
-            autoComplete="username"
-          />
+          <label htmlFor="username">Username or Email</label>
+          <input type="text" id="username" className="form-control" value={username} onChange={(e) => setUsername(e.target.value)} required disabled={loading} autoComplete="username" />
         </div>
         <div className="form-group">
           <label htmlFor="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            className="form-control"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            disabled={loading}
-            autoComplete="current-password"
-          />
+          <input type="password" id="password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} autoComplete="current-password" />
+        </div>
+        <div className="form-group" style={{textAlign:'right'}}>
+            <Link to="/forgot-password" style={{fontSize:'0.9em'}}>Forgot Password?</Link>
         </div>
         <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
           {loading ? 'Logging in...' : 'Login'}
         </button>
       </form>
-      <p className="text-center my-1">
-        Don't have an account? <Link to="/signup">Sign Up</Link>
-      </p>
+      <p className="text-center my-1"> Don't have an account? <Link to="/signup">Sign Up</Link> </p>
     </div>
   );
 };
