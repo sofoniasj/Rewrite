@@ -367,7 +367,38 @@ const deleteContentForAdmin = [
   }),
 ];
 
+// @desc    Generate a dynamic sitemap
+// @route   GET /api/content/sitemap.xml (or directly on root, see routes file)
+// @access  Public
+
+const getSitemap = asyncHandler(async (req, res, next) => {
+    const baseURL = process.env.CLIENT_URL || 'https://rewrite-9ers.onrender.com';
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+
+    // 1. Add static pages
+    xml += `<url><loc>${baseURL}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>`;
+    xml += `<url><loc>${baseURL}/explore</loc><changefreq>daily</changefreq><priority>0.8</priority></url>`;
+
+    // 2. Add public user profiles
+    const publicUsers = await User.find({ isPrivate: false, status: 'active' }).select('username updatedAt');
+    for (const user of publicUsers) {
+        xml += `<url><loc>${baseURL}/profile/${user.username}</loc><lastmod>${new Date(user.updatedAt).toISOString()}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>`;
+    }
+
+    // 3. Add public top-level articles
+    const publicArticles = await Content.find({ isPrivateToFollowers: false, parentContent: null }).select('id updatedAt');
+    for (const article of publicArticles) {
+        xml += `<url><loc>${baseURL}/read/${article.id}</loc><lastmod>${new Date(article.updatedAt).toISOString()}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>`;
+    }
+
+    xml += '</urlset>';
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+});
+
 export {
+  getSitemap, // <-- Add this new export
   unreportContent,
   getFilteredContent,
   getMyPageFeed,

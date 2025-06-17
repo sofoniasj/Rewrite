@@ -1,0 +1,11 @@
+# Tell all search engine crawlers they can crawl the site
+User-agent: *
+Allow: /
+
+# Specifically disallow crawling of private/sensitive user areas
+Disallow: /profile/:username/settings/
+Disallow: /profile/:username/saved/
+Disallow: /admin/
+
+# Point to the location of your sitemap (we will create this endpoint next)
+Sitemap: https://rewrite-9ers.onrender.com//sitemap.xml

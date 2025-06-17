@@ -3,7 +3,7 @@ import express from 'express';
 import {
   // Main content fetching (handles general, popular via query params)
   getFilteredContent,
-
+   getSitemap,
   // Specific Feed Controllers
   getMyPageFeed,
   getExploreFeed,
@@ -33,6 +33,10 @@ import {
 import { protect, admin } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
+
+// --- Sitemap Route ---
+// Placed near the top for visibility
+router.get('/sitemap.xml', getSitemap);
 
 // --- Feed Routes (Specific Endpoints) ---
 // These are protected as they are personalized or involve potentially complex queries
