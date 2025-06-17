@@ -1,0 +1,7 @@
+{
+  "routes": {
+    "/sitemap.xml": {
+      "proxy": "https://rewriteb.onrender.com/api/content/sitemap.xml"
+    }
+  }
+}
