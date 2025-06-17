@@ -4,6 +4,7 @@ import {
   // Main content fetching (handles general, popular via query params)
   getFilteredContent,
   
+   getSitemap, // <-- IMPORT NEW
   // Specific Feed Controllers
   getMyPageFeed,
   getExploreFeed,
@@ -33,6 +34,9 @@ import {
 import { protect, admin } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
+
+// Placed near the top for visibility.
+router.get('/sitemap.xml', getSitemap);
 
 // --- Feed Routes (Specific Endpoints) ---
 // These are protected as they are personalized or involve potentially complex queries
@@ -69,10 +73,10 @@ router.get('/admin/all', protect, admin, getAllContentForAdmin); // Get all cont
 
 router.delete('/admin/:id', protect, admin, deleteContentForAdmin); // Delete any content item and its children (admin)
 
-import { generateSitemap } from '../controllers/sitemap.controller.js'; // new
+//import { generateSitemap } from '../controllers/sitemap.controller.js'; // new
 
 // Sitemap route (public)
-router.get('/sitemap.xml', generateSitemap);
+//router.get('/sitemap.xml', generateSitemap);
 
 
 export default router;
