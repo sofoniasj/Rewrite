@@ -1,22 +1,17 @@
 // Rewrite/client/src/main.jsx
 import React from 'react';
-import { hydrateRoot } from 'react-dom/client'; // <-- Import hydrateRoot
+import ReactDOM from 'react-dom/client';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { HelmetProvider } from 'react-helmet-async'; // <-- Import HelmetProvider
 import App from './App.jsx';
-import { AuthProvider } from './contexts/AuthContext.jsx';
-import './assets/css/main.css';
+import { AuthProvider } from './contexts/AuthContext.jsx'; // We will create this
+import './assets/css/main.css'; // Global styles
 
-// Use hydrateRoot instead of createRoot
-hydrateRoot(
-  document.getElementById('root'),
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Router>
-      <HelmetProvider> {/* Wrap App with HelmetProvider */}
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </HelmetProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </Router>
   </React.StrictMode>
 );
