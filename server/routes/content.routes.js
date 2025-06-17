@@ -66,6 +66,13 @@ router.delete('/:id/report', protect, unreportContent); // <-- THIS IS THE MISSI
 // ...
 // --- Admin Only Content Routes ---
 router.get('/admin/all', protect, admin, getAllContentForAdmin); // Get all content items (for admin panel)
+
 router.delete('/admin/:id', protect, admin, deleteContentForAdmin); // Delete any content item and its children (admin)
+
+import { generateSitemap } from '../controllers/sitemap.controller.js'; // new
+
+// Sitemap route (public)
+router.get('/sitemap.xml', generateSitemap);
+
 
 export default router;
