@@ -224,6 +224,18 @@ const SignupPage = () => {
           <li>Your username and email must be unique.</li>
           <li>You are responsible for maintaining the confidentiality of your password.</li>
           <li>We reserve the right to remove content or suspend accounts that violate these terms without notice.</li>
+          <li>By accessing or using this website, you agree to be bound by these Terms. If you do not agree, do not use the site.</li>
+          <li>We reserve the right to update these Terms at any time. Continued use of the website after changes constitutes your acceptance.</li>
+          <li>You retain ownership of your content but grant us a license to use, display, and distribute it as needed for site functionality. You agree not to post illegal, harmful, or copyrighted material without permission.</li>
+          <li>You may not:
+- Use the site for unlawful purposes
+- Attempt to hack or disrupt the platform
+- Post abusive, hateful, or harmful content</li>
+<li>We may suspend or terminate access to the site without notice if you violate these Terms.
+</li>
+      <li>These Terms and Conditions shall be governed in accordance with universally recognized principles of international law applicable to online platforms. By using this website, you agree to comply with all applicable local, national, and international laws and regulations, including those related to content, privacy, and intellectual property.
+</li>
+
         </ul>
         <button onClick={closeTermsModal} className="btn btn-primary" style={{ marginTop: '15px' }}>
           Close
