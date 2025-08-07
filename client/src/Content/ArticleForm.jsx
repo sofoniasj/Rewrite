@@ -123,7 +123,7 @@ const ArticleForm = ({
           onChange={(e) => setText(e.target.value)}
           placeholder={isEditMode ? 'Edit your content...' : (isReply ? 'Write your reply...' : 'Write your article content...')}
           required
-          maxLength="10000"
+          maxLength="100000"
           disabled={loading}
         ></textarea>
       </div>
