@@ -150,7 +150,15 @@ const ReadPageArticleView = ({ initialLineage: propInitialLineage, rootArticleId
 
       <div className="lineage-metadata card-meta" style={{ marginBottom: '20px', padding: '10px', background: '#f8f9fa', borderRadius: '4px', border:'1px solid #eee' }}>
           <p style={{margin:0}}>
-              <strong>Author:</strong> {displaySegment.author?.username || 'Unknown'} |{' '}
+              <strong>Author:</strong>{' '}
+              {displaySegment.author?.username ? (
+                <Link to={`/profile/${displaySegment.author.username}`} style={{color: '#0056b3', fontWeight: '500'}}>
+                  {displaySegment.author.username}
+                </Link>
+              ) : (
+                'Unknown'
+              )}
+              {' '}|{' '}
               <strong>Posted:</strong> {format(new Date(displaySegment.createdAt || Date.now()), 'PPP p')} |{' '}
               <strong>Likes:</strong> <FaThumbsUp size="0.8em"/> {displaySegment.likeCount || 0}
           </p>
@@ -161,7 +169,14 @@ const ReadPageArticleView = ({ initialLineage: propInitialLineage, rootArticleId
         <div className="active-segment-actions-panel card" style={{padding: '15px', marginBottom: '20px', background:'#fff', border:'2px solid #007bff'}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #eee', paddingBottom:'10px', marginBottom:'15px'}}>
                 <h5 style={{marginTop:0, marginBottom:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
-                    Actions for Segment by: <strong style={{color: '#007bff'}}>{activeSegmentForActions.author?.username || 'Unknown'}</strong>
+                    Actions for Segment by:{' '}
+                    {activeSegmentForActions.author?.username ? (
+                        <Link to={`/profile/${activeSegmentForActions.author.username}`}>
+                            <strong style={{color: '#007bff'}}>{activeSegmentForActions.author.username}</strong>
+                        </Link>
+                    ) : (
+                        <strong>Unknown</strong>
+                    )}
                 </h5>
                  <button onClick={() => {setActiveSegmentForActions(null); clearActionMessages();}} className="btn btn-sm btn-link" style={{color:'#aaa', padding:'0 5px'}} title="Close Actions Panel"><FaTimes/></button>
             </div>
