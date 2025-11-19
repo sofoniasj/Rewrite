@@ -5,7 +5,7 @@ import { useAuth } from './contexts/AuthContext.jsx';
 
 // Layout Components
 import Navbar from './components/Layout/Navbar.jsx';
-import Footer from './components/Layout/Footer.jsx';
+//import Footer from './components/Layout/Footer.jsx';
 import LoadingSpinner from './components/Common/LoadingSpinner.jsx';
 
 // Page Components (Lazy Loaded)
