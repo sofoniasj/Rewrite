@@ -8,7 +8,7 @@ const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://draftingb.onrender.com',
+  baseURL: import.meta.env.VITE_API_URL || 'https://draftingb.onrender.com/api',
 });
 
 apiClient.interceptors.request.use(
