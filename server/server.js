@@ -22,7 +22,8 @@ const app = express();
 // --- START OF CORS CONFIGURATION ---
 // List of allowed domains
 const allowedOrigins = [
-    'https://rewrite-9ers.onrender.com', // Your old render domain
+   // 'https://rewrite-9ers.onrender.com',
+    'https://drafting.onrender.com', // Your old render domain
     'https://www.draftiteration.com',    // Your new custom domain
     process.env.CLIENT_URL               // Any other URL from your .env file
 ].filter(Boolean); // This removes any undefined/null values from the list
