@@ -16,7 +16,7 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="container">
         <Link to="/" className="navbar-brand">
-          Rewrite
+          Draft
         </Link>
         <ul className="nav-links">
           <li>
