@@ -15,7 +15,7 @@ const sendEmail = async (options) => {
 
     // 2. Define the email options
     const mailOptions = {
-        from: `Rewrite App <${process.env.EMAIL_USER}>`, // sender address
+        from: `Draft App <${process.env.EMAIL_USER}>`, // sender address
         to: options.email, // list of receivers
         subject: options.subject, // Subject line
         text: options.message, // plain text body
