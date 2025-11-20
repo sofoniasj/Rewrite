@@ -65,7 +65,7 @@ const SignupPage = () => {
 
     try {
       const { data } = await axios.post(
-        'https://rewriteb.onrender.com/api/auth/signup', // ✅ Replace with your backend URL if hosted
+        'https://draftingb.onrender.com/api/auth/signup', // ✅ Replace with your backend URL if hosted
         {
           username,
           email,
