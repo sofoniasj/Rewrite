@@ -1,45 +1,42 @@
-// Rewrite/server/utils/sendEmail.js
-import nodemailer from 'nodemailer';
+require("dotenv").config();
+const nodemailer = require("nodemailer");
 
-const sendEmail = async (options) => {
-    // 1. Create a transporter object using the default SMTP transport
-    /*const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST,
-        port: process.env.EMAIL_PORT,
-        secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
-        auth: {
-            user: process.env.EMAIL_USER, // your email from .env
-            pass: process.env.EMAIL_PASSWORD, // your email app password from .env
-        },
-    });*/
-    const transporter = nodemailer.createTransport({
+// Create transporter with Gmail + App Password
+const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "forkshoots@gmail.com",
-    pass: "opgezmtnwmzleusw",  // paste here (no spaces)
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // App password from Google
   },
 });
 
-    // 2. Define the email options
-    const mailOptions = {
-        from: `Draft App <${process.env.EMAIL_USER}>`, // sender address
-        to: options.email, // list of receivers
-        subject: options.subject, // Subject line
-        text: options.message, // plain text body
-        html: options.html // html body
+// Function to send verification email
+async function sendVerificationEmail(to, token) {
+  const verifyUrl = `${process.env.APP_URL}/verify-email?token=${token}`;
 
-    };
+  const mailOptions = {
+    from: `"Your App" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: "Verify Your Email",
+    html: `
+      <h2>Verify Your Email</h2>
+      <p>Click the link below to verify:</p>
+      <a href="${verifyUrl}" target="_blank">
+        ${verifyUrl}
+      </a>
+    `,
+  };
 
-    // 3. Send the email
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent: %s', info.messageId);
-    } catch (error) {
-        console.error('Error sending email:', error);
-        // In a real app, you might want to handle this error more gracefully
-        // e.g., by logging to a service or notifying an admin.
-        throw new Error('Email could not be sent');
-    }
+  try {
+    const result = await transporter.sendMail(mailOptions);
+    console.log("Verification email sent:", result.messageId);
+    return result;
+  } catch (err) {
+    console.error("Email error:", err);
+    throw err;
+  }
+}
+
+module.exports = {
+  sendVerificationEmail,
 };
-
-export default sendEmail;
