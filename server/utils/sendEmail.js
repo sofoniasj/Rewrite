@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 
 const sendEmail = async (options) => {
     // 1. Create a transporter object using the default SMTP transport
-    const transporter = nodemailer.createTransport({
+    /*const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
         port: process.env.EMAIL_PORT,
         secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
@@ -11,7 +11,14 @@ const sendEmail = async (options) => {
             user: process.env.EMAIL_USER, // your email from .env
             pass: process.env.EMAIL_PASSWORD, // your email app password from .env
         },
-    });
+    });*/
+    const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "forkshoots@gmail.com",
+    pass: "opgezmtnwmzleusw",  // paste here (no spaces)
+  },
+});
 
     // 2. Define the email options
     const mailOptions = {
@@ -20,6 +27,7 @@ const sendEmail = async (options) => {
         subject: options.subject, // Subject line
         text: options.message, // plain text body
         html: options.html // html body
+
     };
 
     // 3. Send the email

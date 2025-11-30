@@ -61,7 +61,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/users', userRoutes);
 
 app.get('/', (req, res) => {
-    res.send('Rewrite API is running...');
+    res.send('Draft API is running...');
 });
 
 app.use(notFound);
