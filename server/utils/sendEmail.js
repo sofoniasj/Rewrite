@@ -1,42 +1,35 @@
-require("dotenv").config();
-const nodemailer = require("nodemailer");
+import nodemailer from 'nodemailer';
 
-// Create transporter with Gmail + App Password
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // App password from Google
-  },
-});
+const sendEmail = async (options) => {
+    // 1. Create a transporter
+    // For Gmail, use the App Password, not your login password.
+    const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD,
+        },
+    });
 
-// Function to send verification email
-async function sendVerificationEmail(to, token) {
-  const verifyUrl = `${process.env.APP_URL}/verify-email?token=${token}`;
+    // 2. Define the email options
+    const mailOptions = {
+        from: `"Draft App" <${process.env.EMAIL_USER}>`, // Sender address
+        to: options.email,
+        subject: options.subject,
+        text: options.message, // Plain text body
+        html: options.html,    // HTML body
+    };
 
-  const mailOptions = {
-    from: `"Your App" <${process.env.EMAIL_USER}>`,
-    to,
-    subject: "Verify Your Email",
-    html: `
-      <h2>Verify Your Email</h2>
-      <p>Click the link below to verify:</p>
-      <a href="${verifyUrl}" target="_blank">
-        ${verifyUrl}
-      </a>
-    `,
-  };
-
-  try {
-    const result = await transporter.sendMail(mailOptions);
-    console.log("Verification email sent:", result.messageId);
-    return result;
-  } catch (err) {
-    console.error("Email error:", err);
-    throw err;
-  }
-}
-
-module.exports = {
-  sendVerificationEmail,
+    // 3. Send the email
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Message sent: %s', info.messageId);
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Email could not be sent');
+    }
 };
+
+export default sendEmail;
