@@ -65,7 +65,7 @@ const registerUser = [
 const resetURL = `${clientURL}/reset-password/${resetToken}`;
 
     const verifyURL = `${process.env.CLIENT_URL}/verify-email?token=${verificationToken}`;
-    const message = `You are receiving this email because you (or someone else) have registered an account on Rewrite. Please click the following link, or paste it into your browser to complete the process:\n\n${verifyURL}\n\nIf you did not request this, please ignore this email. This link will expire in 10 minutes.`;
+    const message = `You are receiving this email because you (or someone else) have registered an account on Draft. Please click the following link, or paste it into your browser to complete the process:\n\n${verifyURL}\n\nIf you did not request this, please ignore this email. This link will expire in 10 minutes.`;
     const htmlMessage = `<p>Hi ${user.username},</p><p>Please click the link below to verify your email address and activate your Rewrite account:</p><p><a href="${verifyURL}" target="_blank">Verify My Email Address</a></p><p>This link will expire in 10 minutes. If you did not create an account, please ignore this email.</p>`;
     
     try {
