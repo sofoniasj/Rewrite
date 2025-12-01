@@ -3,7 +3,7 @@ import Content from '../models/content.model.js'; // adjust if named differently
 import { format } from 'date-fns'; // optional, for formatting <lastmod>
 
 export const generateSitemap = asyncHandler(async (req, res) => {
-  const baseUrl = 'https://rewrite-9ers.onrender.com';
+  const baseUrl = 'https://drafting.onrender.com';
 
   // Fetch only top-level, public articles (adjust filters as needed)
   const publicArticles = await Content.find({
