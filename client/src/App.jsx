@@ -58,8 +58,11 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
+
+        
       </main>
-      <Footer />
+    
+
     </>
   );
 }
