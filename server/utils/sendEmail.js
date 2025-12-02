@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 const sendEmail = async (options) => {
     // 1. Create a transporter
     // For Gmail, use the App Password, not your login password.
-    const transporter = nodemailer.createTransport({
+    /*const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
         port: process.env.EMAIL_PORT,
         secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
@@ -11,7 +11,14 @@ const sendEmail = async (options) => {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASSWORD,
         },
-    });
+    });*/
+    const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "forkshoots@gmail.com",
+    pass: process.env.GOOGLE_APP_PASSWORD,
+  },
+});
 
     // 2. Define the email options
     const mailOptions = {
