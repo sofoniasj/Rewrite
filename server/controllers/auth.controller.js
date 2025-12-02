@@ -60,7 +60,7 @@ const registerUser = [
     await user.save();
 
     // --- 2. Send Verification Email ---
-    const clientURL = process.env.CLIENT_URL || "http://localhost:5173";
+    const clientURL = process.env.CLIENT_URL || "http://drafting.onrender.com";
 
 const resetURL = `${clientURL}/reset-password/${resetToken}`;
 
