@@ -27,7 +27,7 @@ const allowedOrigins = [
     'https://www.draftiteration.com',    // Your new custom domain
     process.env.CLIENT_URL               // Any other URL from your .env file
 ].filter(Boolean); // This removes any undefined/null values from the list
-
+app.use(express.static(path.join(__dirname, "public")));
 app.use(cors({
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
