@@ -2,9 +2,8 @@
  * Sitemap Controller
  * Handles the logic for dynamically generating and serving the sitemap.xml file.
  */
-import { generateSitemap } from './sitemap.controller.js';
 
-const BASE_URL = 'https://www.draftiteration.com';
+const BASE_URL = 'https://www.yourdomain.com';
 
 // Mock function to simulate fetching a list of dynamic content (e.g., blog posts)
 const fetchDynamicUrls = async () => {
@@ -92,4 +91,4 @@ export const generateSitemap = async (req, res) => {
 
 // Example of how you would export and use this in your routes file (e.g., router.js):
 // import { generateSitemap } from './sitemap.controller.js';
- router.get('/sitemap.xml', generateSitemap);
+// router.get('/sitemap.xml', generateSitemap);
