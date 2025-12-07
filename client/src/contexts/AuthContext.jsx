@@ -126,6 +126,29 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+// --- NEW GOOGLE LOGIN FUNCTION ---
+  const googleLogin = async (credentialResponse) => {
+    setLoading(true); setError(null);
+    try {
+        const { data } = await apiClient.post('/auth/google', { 
+            token: credentialResponse.credential 
+        });
+        localStorage.setItem('rewriteToken', data.token); 
+        setToken(data.token); 
+        setUser(data);
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        setLoading(false); 
+        navigate('/'); 
+        return true;
+    } catch (err) {
+        console.error('Google Login failed:', err);
+        setError(err.response?.data?.error || 'Google Login failed.');
+        setLoading(false); 
+        return false;
+    }
+  };
+
+
   const value = {
     user,
     token,
@@ -138,7 +161,8 @@ export const AuthProvider = ({ children }) => {
     fetchUserProfile,
     apiClient,
     clearError,
-    updateUserField, // ✅ Export the update function
+    updateUserField, 
+    googleLogin,// ✅ Export the update function
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
