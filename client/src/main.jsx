@@ -32,18 +32,4 @@ if (import.meta.env.MODE === 'development' && container.hasChildNodes()) {
         </GoogleOAuthProvider>
       </React.StrictMode>
     );
-} else {
-    createRoot(container).render(
-      <React.StrictMode>
-        <GoogleOAuthProvider clientId={googleClientId}>
-          <Router>
-            <HelmetProvider>
-              <AuthProvider>
-                <App />
-              </AuthProvider>
-            </HelmetProvider>
-          </Router>
-        </GoogleOAuthProvider>
-      </React.StrictMode>
-    );
 }
