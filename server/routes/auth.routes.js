@@ -1,7 +1,9 @@
 import express from 'express';
+import { googleLogin } from "../controllers/googleAuth.js";
 import {
   login,
   signup,
+  googleLogin, // <-- Import
   verifyEmail, // <-- New import
   forgotPassword,
   resetPassword,
@@ -37,8 +39,12 @@ router.get('/:userId/following', getFollowing);
 router.post('/follow/:userId', protect, followUser);
 router.post('/unfollow/:userId', protect, unfollowUser);
 
+router.post("/google", googleLogin);
+
 // Admin Routes
 router.get('/admin/users', protect, admin, getAllUsersForAdmin);
 router.put('/admin/users/:userId/status', protect, admin, toggleUserStatus);
 
+// --- Email Verification & Password Reset Routes ---
+router.get('/verify-email/:token', verifyEmail); // Changed to GET for link clicking, or POST if sending token manually
 export default router;

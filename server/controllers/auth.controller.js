@@ -7,6 +7,9 @@ import User from '../models/user.model.js';
 import generateToken from '../utils/generateToken.js';
 import sendEmail from '../utils/sendEmail.js'; // Import email utility
 import AppError from '../utils/AppError.js';
+import { OAuth2Client } from 'google-auth-library'; // Import Google Auth Library
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const checkValidation = (req, next) => {
     const errors = validationResult(req);
@@ -152,4 +155,66 @@ const verifyEmail = [
     })
 ];
 
-export { registerUser, verifyEmail, loginUser, forgotPassword, resetPassword, getUserProfile };
+const googleLogin = asyncHandler(async (req, res, next) => {
+    const { token } = req.body;
+    
+    // 1. Verify Google Token
+    const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const { name, email, picture, sub: googleId } = ticket.getPayload();
+
+    // 2. Check if user exists
+    let user = await User.findOne({ email });
+
+    if (user) {
+        // User exists
+        if (!user.googleId) {
+            // Link Google account to existing account
+            user.googleId = googleId;
+            // If they registered locally but verified via Google now, mark verified
+            if(!user.isVerified) user.isVerified = true; 
+            if(!user.isEmailVerified) user.isEmailVerified = true;
+            await user.save({ validateBeforeSave: false });
+        }
+    } else {
+        // 3. Create new user
+        // Generate unique username based on name or email
+        const baseName = name ? name.replace(/\s+/g, '_').toLowerCase() : email.split('@')[0];
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        let username = `${baseName}_${randomSuffix}`.replace(/[^a-zA-Z0-9_]/g, '');
+
+        // Ensure uniqueness loop (simple check)
+        const usernameExists = await User.findOne({ username });
+        if (usernameExists) username += `_${Date.now().toString().slice(-4)}`;
+
+        user = await User.create({
+            username,
+            email,
+            password: crypto.randomBytes(20).toString('hex'), // Dummy password for validation
+            authProvider: 'google',
+            googleId: googleId,
+            profilePicture: picture,
+            isVerified: true, // Google accounts are verified
+            isEmailVerified: true,
+            agreedToTerms: true // Implied
+        });
+    }
+
+    if (user.status === 'deleted') return next(new AppError('Account is deleted.', 401));
+
+    // 4. Return Token
+    res.json({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        isVerified: user.isVerified,
+        isPrivate: user.isPrivate,
+        createdAt: user.createdAt,
+        token: generateToken(user.id, user.role),
+        profilePicture: user.profilePicture
+    });
+});
+
+export { registerUser, verifyEmail, loginUser, forgotPassword, resetPassword, getUserProfile, googleLogin  };

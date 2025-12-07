@@ -3,7 +3,7 @@
  * Handles the logic for dynamically generating and serving the sitemap.xml file.
  */
 
-const BASE_URL = 'https://www.yourdomain.com';
+const BASE_URL = 'https://www.draftiteration.com';
 
 // Mock function to simulate fetching a list of dynamic content (e.g., blog posts)
 const fetchDynamicUrls = async () => {
