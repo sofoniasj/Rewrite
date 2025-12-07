@@ -42,6 +42,7 @@ const SignupPage = () => {
     setLoading(true);
 
     try {
+<<<<<<< HEAD
         const { data } = await apiClient.post('/auth/signup', { 
             username, 
             email, 
@@ -55,6 +56,19 @@ const SignupPage = () => {
         setUsername(''); setEmail(''); setPassword(''); setConfirmPassword(''); setAgreedToTerms(false);
         if (recaptchaRef.current) recaptchaRef.current.reset(); 
         setCaptchaToken(null);
+=======
+      const { data } = await axios.post(
+        'https://draftingb.onrender.com/api/auth/signup', // ✅ Replace with your backend URL if hosted
+        {
+          username,
+          email,
+          password,
+          agreedToTerms,
+          captchaToken,
+        },
+        { withCredentials: true }
+      );
+>>>>>>> 88225dc4a69d52be5a7d16f5da071d22d0c79e94
 
     } catch (err) {
         setFormError(err.response?.data?.error || 'Signup failed. Please try again.');
