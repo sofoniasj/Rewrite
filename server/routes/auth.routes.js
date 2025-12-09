@@ -1,5 +1,5 @@
 import express from 'express';
-import { googleLogin } from "../controllers/googleAuth.js";
+//import { googleLogin } from "../controllers/googleAuth.js";
 import {
   login,
   signup,
@@ -26,7 +26,7 @@ const router = express.Router();
 router.post('/login', login);
 router.post('/signup', signup);
 router.get('/verify-email/:token', verifyEmail); // <-- New Verification Route
-router.post('/forgot-password', forgotPassword);
+//router.post('/forgot-password', forgotPassword);
 router.put('/reset-password/:token', resetPassword);
 
 // Protected Routes
