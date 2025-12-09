@@ -2,6 +2,8 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "google-auth-library": "^10.5.0",
-    "jsonwebtoken": "^9.0.3"
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "react-helmet-async": "^2.0.5"
   }
 }
