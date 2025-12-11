@@ -1,75 +1,73 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+// Rewrite/client/src/App.jsx
+import React, { Suspense, lazy } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext.jsx';
+import EmailVerificationPage from './pages/Auth/EmailVerificationPage'; // <-- NEW IMPORT
+// Layout Components
+import Navbar from './components/Layout/Navbar.jsx';
+//import Footer from './components/Layout/Footer.jsx';
+import LoadingSpinner from './components/Common/LoadingSpinner.jsx';
 
-// Context Providers
-import { AuthProvider } from './contexts/AuthContext';
-import { ArticleProvider } from './contexts/ArticleContext';
-import { AdminProvider } from './contexts/AdminContext';
+// Page Components (Lazy Loaded)
+const HomePage = lazy(() => import('./pages/HomePage.jsx'));
+const LoginPage = lazy(() => import('./pages/Auth/LoginPage.jsx'));
+const SignupPage = lazy(() => import('./pages/Auth/SignupPage.jsx'));
+const AdminDashboardPage = lazy(() => import('./pages/Admin/AdminDashboardPage.jsx'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'));
+const ExplorePage = lazy(() => import('./pages/Explore/ExplorePage.jsx'));
+const ExploreArticleDetailPage = lazy(() => import('./pages/Explore/ExploreArticleDetailPage.jsx'));
+const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage.jsx'));
+const ReadPageArticleView = lazy(() => import('./components/Content/ReadPageArticleView.jsx'));
 
-// Components
-import Navbar from './components/Layout/Navbar';
-import Footer from './components/Layout/Footer';
-import PrivateRoute from './components/Routing/PrivateRoute';
-import AdminRoute from './components/Routing/AdminRoute';
+// NEW Pages for Verification and Password Reset
+const VerifyEmailPage = lazy(() => import('./pages/Auth/VerifyEmailPage.jsx'));
+const ForgotPasswordPage = lazy(() => import('./pages/Auth/ForgotPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/Auth/ResetPasswordPage.jsx'));
 
-// Pages
-import HomePage from './pages/HomePage';
-import SignupPage from './pages/Auth/SignupPage';
-import LoginPage from './pages/Auth/LoginPage';
-import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
-import EmailVerificationPage from './pages/Auth/EmailVerificationPage';
-import ProfilePage from './pages/User/ProfilePage';
-import SettingsPage from './pages/User/SettingsPage';
-import ArticleDetailPage from './pages/Content/ArticleDetailPage';
-import ArticleNewPage from './pages/Content/ArticleNewPage';
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import NotFoundPage from './pages/Common/NotFoundPage';
 
-// CSS
-import './styles/main.css';
+function ProtectedRoute({ children, adminOnly = false }) { /* ... (same as before) ... */
+  const { user, loading } = useAuth(); if (loading) return <LoadingSpinner />; if (!user) return <Navigate to="/login" replace />; if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />; return children;
+}
 
-const App = () => {
+function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <ArticleProvider>
-          <AdminProvider>
-            <Navbar />
+    <>
+      <Navbar />
+      <main className="container">
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            {/* Main Routes */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/explore" element={<ExplorePage />} />
+            <Route path="/explore/:articleId" element={<ReadPageArticleView />} />
+            <Route path="/read/:articleId" element={<ReadPageArticleView />} /> {/* Consolidated view */}
 
-            
-              <Routes>
-
-                {/* Public */}
-                <Route path="/" element={<HomePage />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-                <Route path="/verify-email/:token" element={<EmailVerificationPage />} />
-
-                <Route path="/profile/:username" element={<ProfilePage />} />
-                <Route path="/read/:articleId" element={<ArticleDetailPage />} />
-                <Route path="/read/:articleId/:versionId" element={<ArticleDetailPage />} />
-
-                {/* Private */}
-                <Route path="/new" element={<PrivateRoute element={ArticleNewPage} />} />
-                <Route path="/settings" element={<PrivateRoute element={SettingsPage} />} />
-
-                {/* Admin */}
-                <Route path="/admin" element={<AdminRoute element={AdminDashboard} />} />
-
-                {/* 404 */}
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
+            {/* Auth Routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             
 
-            <Footer />
-          </AdminProvider>
-        </ArticleProvider>
-      </AuthProvider>
-    </Router>
+            {/* New Verification Route */}
+                <Route path="/verify-email/:token" element={<EmailVerificationPage />} /> 
+            {/* Profile Route */}
+            <Route path="/profile/:username/*" element={<ProfilePage />} />
+
+            {/* Admin Route */}
+            <Route path="/admin/dashboard/*" element={ <ProtectedRoute adminOnly={true}> <AdminDashboardPage /> </ProtectedRoute> } />
+            
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+
+        
+      </main>
+    
+
+    </>
   );
-};
+}
 
 export default App;

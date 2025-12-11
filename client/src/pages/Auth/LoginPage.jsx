@@ -63,6 +63,7 @@ const LoginPage = () => {
               width="100%"
               text="continue_with"
           />
+           
       </div>
 
       <p className="text-center my-1 mt-3"> Don't have an account? <Link to="/signup">Sign Up</Link> </p>

@@ -23,6 +23,7 @@ const app = express();
 // List of allowed domains
 const allowedOrigins = [
    // 'https://rewrite-9ers.onrender.com',
+   'http://localhost:5173',
     'https://drafting.onrender.com', // Your old render domain
     'https://www.draftiteration.com',    // Your new custom domain
     process.env.CLIENT_URL               // Any other URL from your .env file
